@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -16,7 +17,7 @@ import {
 } from '@/data/mockData';
 import { calculateDegradationRate } from '@/utils/batteryAnalytics';
 
-// Updated interface to handle both fleet view and single battery detail view
+// Updated interface to include all properties used in Index.tsx
 export interface DetailPanelProps {
   // For single battery detail view
   batteryId?: string;
@@ -40,6 +41,14 @@ export interface DetailPanelProps {
   panelDescription?: string;
   chartTitle?: string;
   chartYLabel?: string;
+  
+  // Added missing properties from error messages
+  additionalData?: {
+    tempVsSoh: any;
+    cyclesVsSoh: any;
+  };
+  cycleHistory?: any;
+  thermalMapData?: any;
 }
 
 export const DetailPanel: React.FC<DetailPanelProps> = (props) => {
