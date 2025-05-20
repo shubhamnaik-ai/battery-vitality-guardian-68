@@ -214,12 +214,12 @@ const ComparisonTab: React.FC<ComparisonTabProps> = ({
               height={400}
               tooltipFormatter={processedData[0].formatter}
               xAxisFormatter={(value) => {
-                if (value.includes('T')) {
+                if (typeof value === 'string' && value.includes('T')) {
                   // Date format
                   const date = new Date(value);
                   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
                 }
-                return value;
+                return String(value);
               }}
               additionalLines={processedData.slice(1).map((series, index) => ({
                 dataKey: series.dataKey,

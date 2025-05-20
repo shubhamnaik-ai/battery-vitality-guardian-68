@@ -21,7 +21,7 @@ interface LineChartProps {
   height?: number;
   showGrid?: boolean;
   tooltipFormatter?: (value: number) => string;
-  xAxisFormatter?: (value: string) => string;
+  xAxisFormatter?: (value: any) => string;
   additionalLines?: {
     dataKey: string;
     color: string;
@@ -38,7 +38,7 @@ export const LineChart: React.FC<LineChartProps> = ({
   height = 300,
   showGrid = true,
   tooltipFormatter = (value) => `${value}`,
-  xAxisFormatter = (value) => value,
+  xAxisFormatter = (value) => String(value),
   additionalLines = [],
 }) => {
   const [leftZoom, setLeftZoom] = useState<number | null>(null);
@@ -103,6 +103,16 @@ export const LineChart: React.FC<LineChartProps> = ({
     setRightZoom(null);
   };
 
+  // Ensure xAxisFormatter handles all types of values
+  const safeXAxisFormatter = (value: any) => {
+    try {
+      return xAxisFormatter(value);
+    } catch (error) {
+      console.error('Error formatting x-axis value:', error);
+      return String(value);
+    }
+  };
+
   return (
     <div className="relative" style={{ width: '100%', height }}>
       <div className="absolute top-0 right-0 flex gap-2 z-10">
@@ -136,7 +146,7 @@ export const LineChart: React.FC<LineChartProps> = ({
           {showGrid && <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />}
           <XAxis 
             dataKey={xDataKey} 
-            tickFormatter={xAxisFormatter}
+            tickFormatter={safeXAxisFormatter}
             style={{ fontSize: '12px' }}
           />
           <YAxis style={{ fontSize: '12px' }} />
