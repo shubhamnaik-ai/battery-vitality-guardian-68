@@ -33,6 +33,13 @@ const Index = () => {
   // Get unique depot list from fleet data
   const depots = Array.from(new Set(extendedFleetData.map(vehicle => vehicle.depot)));
   const vehicles = extendedFleetData.map(vehicle => vehicle.id);
+
+  // Default select first two vehicles when component mounts
+  useEffect(() => {
+    if (vehicles.length >= 2 && selectedVehicles.length === 0) {
+      setSelectedVehicles([vehicles[0], vehicles[1]]);
+    }
+  }, []);
   
   // Generate historical and prediction data
   const sohHistoricalData = generateSohHistorical(vehicles);
@@ -58,22 +65,25 @@ const Index = () => {
   const prepareMultiVehicleSohData = () => {
     if (filteredVehicleIds.length === 0) return [];
     
-    // If only one vehicle is selected or filtered
-    if (filteredVehicleIds.length === 1) {
-      return sohHistoricalData[filteredVehicleIds[0]] || [];
-    }
-    
     // For multiple vehicles, combine their data with vehicle identifiers
     const combinedData: any[] = [];
-    const baseTimestamps = sohHistoricalData[filteredVehicleIds[0]]?.map(entry => entry.timestamp) || [];
+    
+    // Get the first vehicle's data to use as reference for timestamps
+    const baseVehicleId = filteredVehicleIds[0];
+    const baseTimestamps = sohHistoricalData[baseVehicleId]?.map(entry => entry.timestamp) || [];
     
     baseTimestamps.forEach((timestamp, index) => {
       const dataPoint: any = { timestamp };
       
+      // Add data for each filtered vehicle
       filteredVehicleIds.forEach(vehicleId => {
+        const vehicle = extendedFleetData.find(v => v.id === vehicleId);
         const vehicleData = sohHistoricalData[vehicleId] || [];
         if (vehicleData[index]) {
           dataPoint[vehicleId] = vehicleData[index].value;
+          
+          // Store vehicle name for legend display
+          dataPoint[`${vehicleId}_name`] = vehicle?.name || vehicleId;
         }
       });
       
@@ -87,22 +97,25 @@ const Index = () => {
   const prepareMultiVehicleDegradationData = () => {
     if (filteredVehicleIds.length === 0) return [];
     
-    // If only one vehicle is selected or filtered
-    if (filteredVehicleIds.length === 1) {
-      return degradationPredictionData[filteredVehicleIds[0]] || [];
-    }
-    
     // For multiple vehicles, combine their data with vehicle identifiers
     const combinedData: any[] = [];
-    const baseCycles = degradationPredictionData[filteredVehicleIds[0]]?.map(entry => entry.cycles) || [];
+    
+    // Get the first vehicle's data to use as reference for cycles
+    const baseVehicleId = filteredVehicleIds[0];
+    const baseCycles = degradationPredictionData[baseVehicleId]?.map(entry => entry.cycles) || [];
     
     baseCycles.forEach((cycle, index) => {
       const dataPoint: any = { cycles: cycle };
       
+      // Add data for each filtered vehicle
       filteredVehicleIds.forEach(vehicleId => {
+        const vehicle = extendedFleetData.find(v => v.id === vehicleId);
         const vehicleData = degradationPredictionData[vehicleId] || [];
         if (vehicleData[index]) {
           dataPoint[vehicleId] = vehicleData[index].capacity;
+          
+          // Store vehicle name for legend display
+          dataPoint[`${vehicleId}_name`] = vehicle?.name || vehicleId;
         }
       });
       
@@ -116,22 +129,25 @@ const Index = () => {
   const prepareMultiVehicleThermalData = () => {
     if (filteredVehicleIds.length === 0) return [];
     
-    // If only one vehicle is selected or filtered
-    if (filteredVehicleIds.length === 1) {
-      return thermalHistoryData[filteredVehicleIds[0]] || [];
-    }
-    
     // For multiple vehicles, combine their data with vehicle identifiers
     const combinedData: any[] = [];
-    const baseTimestamps = thermalHistoryData[filteredVehicleIds[0]]?.map(entry => entry.timestamp) || [];
+    
+    // Get the first vehicle's data to use as reference for timestamps
+    const baseVehicleId = filteredVehicleIds[0];
+    const baseTimestamps = thermalHistoryData[baseVehicleId]?.map(entry => entry.timestamp) || [];
     
     baseTimestamps.forEach((timestamp, index) => {
       const dataPoint: any = { timestamp };
       
+      // Add data for each filtered vehicle
       filteredVehicleIds.forEach(vehicleId => {
+        const vehicle = extendedFleetData.find(v => v.id === vehicleId);
         const vehicleData = thermalHistoryData[vehicleId] || [];
         if (vehicleData[index]) {
           dataPoint[vehicleId] = vehicleData[index].temperature;
+          
+          // Store vehicle name for legend display
+          dataPoint[`${vehicleId}_name`] = vehicle?.name || vehicleId;
         }
       });
       

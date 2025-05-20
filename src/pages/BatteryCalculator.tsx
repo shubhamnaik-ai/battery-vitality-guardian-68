@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
@@ -11,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
-import { Calculator as CalcIcon, ArrowLeft } from 'lucide-react';
+import { Calculator as CalcIcon, ArrowLeft, Home } from 'lucide-react';
 import LineChart from '@/components/charts/LineChart';
 
 const BatteryCalculator = () => {
@@ -150,8 +151,18 @@ const BatteryCalculator = () => {
           size="icon" 
           onClick={handleBackClick}
           className="h-8 w-8"
+          title="Go back"
         >
           <ArrowLeft className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={handleBackClick}
+          className="h-8 w-8"
+          title="Go to home page"
+        >
+          <Home className="h-4 w-4" />
         </Button>
         <CalcIcon className="h-8 w-8 text-primary" />
         <h1 className="text-3xl font-bold">Battery Health Calculator</h1>

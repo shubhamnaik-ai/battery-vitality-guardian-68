@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,9 @@ import LineChart from './charts/LineChart';
 import GaugeChart from './charts/GaugeChart';
 import HeatMap from './charts/HeatMap';
 import HealthStatusBadge from './HealthStatusBadge';
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { format } from "date-fns";
 import { 
   sohHistoricalData, 
   socHistoricalData,
@@ -411,23 +414,68 @@ export const DetailPanel: React.FC<DetailPanelProps> = (props) => {
     estimatedLifeRemaining: 'N/A'
   };
   
-  // State for selected vehicle for thermal map
+  // State for selected vehicle for thermal map and date range
   const [selectedVehicleForThermal, setSelectedVehicleForThermal] = useState<string>(
     fleetData && fleetData.length > 0 ? fleetData[0].id : ''
   );
+
+  const [dateRange, setDateRange] = useState<{
+    from: Date | undefined;
+    to: Date | undefined;
+  }>({
+    from: undefined,
+    to: undefined,
+  });
+
+  const [timestamp, setTimestamp] = useState<Date | undefined>(undefined);
+  
+  // Update selected vehicle when fleetData changes
+  useEffect(() => {
+    if (fleetData && fleetData.length > 0 && 
+        !fleetData.some(v => v.id === selectedVehicleForThermal)) {
+      setSelectedVehicleForThermal(fleetData[0].id);
+    }
+  }, [fleetData]);
   
   // Prepare multi-line chart data based on selected vehicles
-  const prepareMultiLineChartData = () => {
-    if (!fleetData || fleetData.length === 0) return [];
+  const prepareMultiLineData = () => {
+    if (!chartData || !fleetData || fleetData.length === 0) return [];
     
-    const selectedVehicleIds = fleetData.map(v => v.id);
+    // Create an array of vehicle data for the line chart
+    const vehicleLines = fleetData.map(vehicle => {
+      const vehicleId = vehicle.id;
+      return {
+        dataKey: vehicleId,
+        color: getVehicleColor(vehicleId), // Function to get unique color per vehicle
+        label: vehicle.name
+      };
+    });
     
-    // For SOH tab or Degradation tab
-    if (chartData) {
-      return selectedVehicleIds;
+    return vehicleLines;
+  };
+  
+  // Function to assign consistent colors to vehicles
+  const getVehicleColor = (vehicleId: string): string => {
+    const colors = [
+      '#3b82f6', // blue
+      '#ef4444', // red
+      '#22c55e', // green
+      '#f59e0b', // amber
+      '#8b5cf6', // purple
+      '#06b6d4', // cyan
+      '#ec4899', // pink
+      '#64748b', // slate
+      '#84cc16', // lime
+      '#14b8a6'  // teal
+    ];
+    
+    // Generate a hash from the vehicle ID to get a consistent color
+    let hash = 0;
+    for (let i = 0; i < vehicleId.length; i++) {
+      hash = vehicleId.charCodeAt(i) + ((hash << 5) - hash);
     }
     
-    return [];
+    return colors[Math.abs(hash) % colors.length];
   };
   
   // Get vehicle-specific thermal map data
@@ -437,8 +485,8 @@ export const DetailPanel: React.FC<DetailPanelProps> = (props) => {
     return thermalMapData[vehicleId] || null;
   };
   
-  // Selected vehicle IDs for multi-line charts
-  const selectedVehicleIds = prepareMultiLineChartData();
+  // Vehicle lines for multi-line charts
+  const vehicleLines = prepareMultiLineData();
   
   // Get the thermal map data for the selected vehicle
   const selectedThermalMap = getVehicleThermalMapData(selectedVehicleForThermal);
@@ -452,26 +500,16 @@ export const DetailPanel: React.FC<DetailPanelProps> = (props) => {
         </p>
       </CardHeader>
       <CardContent className="space-y-4">
-        {chartData && (
+        {chartData && chartData.length > 0 && (
           <LineChart
             data={chartData}
-            xDataKey={chartData[0] && Object.keys(chartData[0])[0] || 'x'} 
-            yDataKey={chartData[0] && Object.keys(chartData[0])[1] || 'y'}
+            xDataKey={Object.keys(chartData[0])[0]} // Usually timestamp or cycles
+            yDataKey={Object.keys(chartData[0]).find(k => !k.includes('_name') && k !== Object.keys(chartData[0])[0]) || ''}
             label={chartYLabel || ''}
             yAxisLabel={chartYLabel || ''}
             color="#3b82f6"
-            additionalLines={
-              // Show multiple lines for multiple vehicles
-              fleetData.length > 1 ? fleetData.slice(1).map((vehicle, idx) => {
-                // Assign different colors to different vehicles
-                const colors = ['#ef4444', '#8b5cf6', '#22c55e', '#f59e0b', '#06b6d4', '#ec4899'];
-                return {
-                  dataKey: Object.keys(chartData[0])[1] || 'y',
-                  color: colors[idx % colors.length],
-                  label: vehicle.name
-                };
-              }) : []
-            }
+            additionalLines={vehicleLines}
+            nameKey="_name" // Use the name key suffix for legends
           />
         )}
 
@@ -533,25 +571,74 @@ export const DetailPanel: React.FC<DetailPanelProps> = (props) => {
           </Card>
         )}
 
-        {/* Vehicle-specific Thermal Map section */}
+        {/* Vehicle-specific Thermal Map section with timestamp selection */}
         {thermalMapData && (
           <Card className="mt-4">
             <CardHeader className="pb-2">
-              <div className="flex justify-between items-center">
+              <div className="flex justify-between items-center flex-wrap gap-2">
                 <CardTitle className="text-sm">Cell Temperature Distribution</CardTitle>
-                <div className="flex items-center">
-                  <label className="text-sm mr-2">Select Vehicle:</label>
-                  <select 
-                    className="text-sm border rounded p-1"
-                    value={selectedVehicleForThermal}
-                    onChange={(e) => setSelectedVehicleForThermal(e.target.value)}
-                  >
-                    {fleetData.map(vehicle => (
-                      <option key={vehicle.id} value={vehicle.id}>
-                        {vehicle.name} ({vehicle.temperature}°C)
-                      </option>
-                    ))}
-                  </select>
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center">
+                    <label className="text-sm mr-2">Vehicle:</label>
+                    <select 
+                      className="text-sm border rounded p-1"
+                      value={selectedVehicleForThermal}
+                      onChange={(e) => setSelectedVehicleForThermal(e.target.value)}
+                    >
+                      {fleetData.map(vehicle => (
+                        <option key={vehicle.id} value={vehicle.id}>
+                          {vehicle.name} ({vehicle.temperature}°C)
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" size="sm">
+                        {timestamp ? format(timestamp, 'PPP') : "Select Date & Time"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="end">
+                      <Calendar
+                        mode="single"
+                        selected={timestamp}
+                        onSelect={setTimestamp}
+                        initialFocus
+                      />
+                      <div className="p-3 border-t border-border">
+                        <div className="grid gap-2">
+                          <div className="flex items-center justify-between">
+                            <div className="text-sm">Time:</div>
+                            <select 
+                              className="text-sm border rounded p-1"
+                              onChange={(e) => {
+                                if (timestamp) {
+                                  const newDate = new Date(timestamp);
+                                  const [hours, minutes] = e.target.value.split(':');
+                                  newDate.setHours(parseInt(hours), parseInt(minutes));
+                                  setTimestamp(newDate);
+                                }
+                              }}
+                              defaultValue="12:00"
+                            >
+                              {Array.from({ length: 24 }).map((_, hour) => (
+                                Array.from({ length: 4 }).map((_, minute) => {
+                                  const h = hour.toString().padStart(2, '0');
+                                  const m = (minute * 15).toString().padStart(2, '0');
+                                  return (
+                                    <option key={`${h}:${m}`} value={`${h}:${m}`}>
+                                      {`${h}:${m}`}
+                                    </option>
+                                  );
+                                })
+                              )).flat()}
+                            </select>
+                          </div>
+                        </div>
+                      </div>
+                    </PopoverContent>
+                  </Popover>
                 </div>
               </div>
             </CardHeader>
@@ -559,7 +646,7 @@ export const DetailPanel: React.FC<DetailPanelProps> = (props) => {
               {selectedThermalMap ? (
                 <HeatMap 
                   data={selectedThermalMap} 
-                  title={`${fleetData.find(v => v.id === selectedVehicleForThermal)?.name || 'Vehicle'} - Cell Temperature Map (°C)`}
+                  title={`${fleetData.find(v => v.id === selectedVehicleForThermal)?.name || 'Vehicle'} - ${timestamp ? format(timestamp, 'MMM d, yyyy HH:mm') : 'Current'}`}
                 />
               ) : (
                 <div className="p-4 text-center text-gray-500">

@@ -31,6 +31,7 @@ interface LineChartProps {
     label?: string;
   }[];
   yAxisLabel?: string;
+  nameKey?: string;  // Key suffix used to find vehicle names for tooltips/legends
 }
 
 export const LineChart: React.FC<LineChartProps> = ({
@@ -45,6 +46,7 @@ export const LineChart: React.FC<LineChartProps> = ({
   xAxisFormatter = (value) => String(value),
   additionalLines = [],
   yAxisLabel,
+  nameKey,
 }) => {
   const [leftZoom, setLeftZoom] = useState<number | null>(null);
   const [rightZoom, setRightZoom] = useState<number | null>(null);
@@ -147,8 +149,58 @@ export const LineChart: React.FC<LineChartProps> = ({
     }
   };
 
+  // Custom tooltip formatter to show vehicle names
+  const customTooltipFormatter = (value: any, name: string, entry: any) => {
+    // If we have a nameKey and it's in the data, use vehicle name instead of ID
+    if (nameKey && data[0]) {
+      const nameField = `${name}${nameKey}`;
+      const item = data.find(d => d[xDataKey] === entry.payload[xDataKey]);
+      
+      if (item && item[nameField]) {
+        const formattedValue = tooltipFormatter ? tooltipFormatter(value) : value;
+        return [formattedValue, item[nameField]];
+      }
+    }
+    
+    return tooltipFormatter ? [tooltipFormatter(value), name] : [value, name];
+  };
+
+  // Generate a custom legend for vehicle names
+  const customLegend = () => {
+    if (!nameKey || !data[0]) return null;
+    
+    const vehicleIds = additionalLines.map(line => line.dataKey);
+    vehicleIds.unshift(yDataKey);
+    
+    const legendItems = vehicleIds.map((id, index) => {
+      const nameField = `${id}${nameKey}`;
+      const firstItem = data.find(d => d[nameField]);
+      const vehicleName = firstItem ? firstItem[nameField] : id;
+      const itemColor = index === 0 ? color : additionalLines[index - 1].color;
+      
+      return (
+        <div 
+          key={id} 
+          className="inline-flex items-center mr-4 mb-2"
+        >
+          <div 
+            className="w-3 h-3 mr-1 rounded-sm" 
+            style={{ backgroundColor: itemColor }}
+          />
+          <span className="text-xs">{vehicleName}</span>
+        </div>
+      );
+    });
+    
+    return (
+      <div className="pt-2 pb-1 flex flex-wrap">
+        {legendItems}
+      </div>
+    );
+  };
+
   return (
-    <div className="relative" style={{ width: '100%', height }}>
+    <div className="relative" style={{ width: '100%', height: height + (nameKey ? 30 : 0) }}>
       <div className="absolute top-0 right-0 flex gap-2 z-10">
         {xDataKey === 'timestamp' && (
           <Popover>
@@ -217,66 +269,80 @@ export const LineChart: React.FC<LineChartProps> = ({
           <ZoomOut className="h-4 w-4" />
         </Button>
       </div>
-      <ResponsiveContainer>
-        <RechartsLineChart
-          data={zoomedData}
-          margin={{ top: 5, right: 30, left: 20, bottom: 25 }}
-          onMouseDown={handleMouseDown}
-          onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUp}
-        >
-          {showGrid && <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />}
-          <XAxis 
-            dataKey={xDataKey} 
-            tickFormatter={safeXAxisFormatter}
-            style={{ fontSize: '12px' }}
-          />
-          <YAxis 
-            style={{ fontSize: '12px' }}
-            label={yAxisLabel ? { 
-              value: yAxisLabel, 
-              angle: -90, 
-              position: 'insideLeft',
-              style: { textAnchor: 'middle', fontSize: '12px' } 
-            } : undefined}
-          />
-          <Tooltip 
-            formatter={(value) => tooltipFormatter(value as number)}
-            contentStyle={{ 
-              backgroundColor: 'white', 
-              border: '1px solid #e5e7eb',
-              borderRadius: '8px',
-              fontSize: '12px'
-            }}
-          />
-          {(label || additionalLines.length > 0) && (
-            <Legend wrapperStyle={{ fontSize: '12px' }} />
-          )}
-          <Line
-            type="monotone"
-            dataKey={yDataKey}
-            stroke={color}
-            activeDot={{ r: 8 }}
-            strokeWidth={2}
-            name={label || yDataKey}
-            dot={{ r: 3 }}
-          />
-          {additionalLines.map((line, index) => (
-            <Line
-              key={index}
-              type="monotone"
-              dataKey={line.dataKey}
-              stroke={line.color}
-              strokeWidth={2}
-              name={line.label || line.dataKey}
-              dot={{ r: 3 }}
+      
+      {/* Custom legend for vehicle names */}
+      {nameKey && customLegend()}
+      
+      <div style={{ height: nameKey ? height : '100%' }}>
+        <ResponsiveContainer>
+          <RechartsLineChart
+            data={zoomedData}
+            margin={{ top: 5, right: 30, left: 20, bottom: 25 }}
+            onMouseDown={handleMouseDown}
+            onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUp}
+          >
+            {showGrid && <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />}
+            <XAxis 
+              dataKey={xDataKey} 
+              tickFormatter={safeXAxisFormatter}
+              style={{ fontSize: '12px' }}
             />
-          ))}
-          {isRefAreaShown && leftZoom && rightZoom && (
-            <ReferenceArea x1={leftZoom} x2={rightZoom} stroke="#8884d8" strokeOpacity={0.3} fill="#8884d8" fillOpacity={0.3} />
-          )}
-        </RechartsLineChart>
-      </ResponsiveContainer>
+            <YAxis 
+              style={{ fontSize: '12px' }}
+              label={yAxisLabel ? { 
+                value: yAxisLabel, 
+                angle: -90, 
+                position: 'insideLeft',
+                style: { textAnchor: 'middle', fontSize: '12px' } 
+              } : undefined}
+            />
+            <Tooltip 
+              formatter={customTooltipFormatter}
+              contentStyle={{ 
+                backgroundColor: 'white', 
+                border: '1px solid #e5e7eb',
+                borderRadius: '8px',
+                fontSize: '12px'
+              }}
+              labelFormatter={(value) => `${xDataKey === 'timestamp' ? 'Time' : xDataKey}: ${value}`}
+            />
+            
+            <Line
+              type="monotone"
+              dataKey={yDataKey}
+              stroke={color}
+              activeDot={{ r: 6 }}
+              strokeWidth={2}
+              name={label || yDataKey}
+              dot={{ r: 2 }}
+            />
+            
+            {additionalLines.map((line, index) => (
+              <Line
+                key={index}
+                type="monotone"
+                dataKey={line.dataKey}
+                stroke={line.color}
+                strokeWidth={2}
+                name={line.label || line.dataKey}
+                dot={{ r: 2 }}
+              />
+            ))}
+            
+            {isRefAreaShown && leftZoom && rightZoom && (
+              <ReferenceArea 
+                x1={leftZoom} 
+                x2={rightZoom} 
+                stroke="#8884d8" 
+                strokeOpacity={0.3} 
+                fill="#8884d8" 
+                fillOpacity={0.3} 
+              />
+            )}
+          </RechartsLineChart>
+        </ResponsiveContainer>
+      </div>
     </div>
   );
 };
