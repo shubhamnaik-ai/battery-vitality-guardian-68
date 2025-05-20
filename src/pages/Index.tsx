@@ -51,115 +51,14 @@ const Index = () => {
     return depotMatch && vehicleMatch;
   });
   
-  // Get vehicle IDs for filtered data
-  const filteredVehicleIds = filteredFleetData.map(vehicle => vehicle.id);
+  // Ensure we have safe access to the first vehicle's data
+  const firstVehicleId = filteredFleetData.length > 0 ? filteredFleetData[0].id : 'BAT-001';
   
-  // Prepare multi-vehicle chart data for SOH analysis
-  const prepareMultiVehicleSohData = () => {
-    if (filteredVehicleIds.length === 0) return [];
-    
-    // If only one vehicle is selected or filtered
-    if (filteredVehicleIds.length === 1) {
-      return sohHistoricalData[filteredVehicleIds[0]] || [];
-    }
-    
-    // For multiple vehicles, combine their data with vehicle identifiers
-    const combinedData: any[] = [];
-    const baseTimestamps = sohHistoricalData[filteredVehicleIds[0]]?.map(entry => entry.timestamp) || [];
-    
-    baseTimestamps.forEach((timestamp, index) => {
-      const dataPoint: any = { timestamp };
-      
-      filteredVehicleIds.forEach(vehicleId => {
-        const vehicleData = sohHistoricalData[vehicleId] || [];
-        if (vehicleData[index]) {
-          dataPoint[vehicleId] = vehicleData[index].value;
-        }
-      });
-      
-      combinedData.push(dataPoint);
-    });
-    
-    return combinedData;
+  // Get chart data safely with fallback
+  const getSafeChartData = (dataMap: Record<string, any>, id: string) => {
+    return dataMap[id] || dataMap['BAT-001'] || [];
   };
-  
-  // Prepare multi-vehicle chart data for degradation prediction
-  const prepareMultiVehicleDegradationData = () => {
-    if (filteredVehicleIds.length === 0) return [];
-    
-    // If only one vehicle is selected or filtered
-    if (filteredVehicleIds.length === 1) {
-      return degradationPredictionData[filteredVehicleIds[0]] || [];
-    }
-    
-    // For multiple vehicles, combine their data with vehicle identifiers
-    const combinedData: any[] = [];
-    const baseCycles = degradationPredictionData[filteredVehicleIds[0]]?.map(entry => entry.cycles) || [];
-    
-    baseCycles.forEach((cycle, index) => {
-      const dataPoint: any = { cycles: cycle };
-      
-      filteredVehicleIds.forEach(vehicleId => {
-        const vehicleData = degradationPredictionData[vehicleId] || [];
-        if (vehicleData[index]) {
-          dataPoint[vehicleId] = vehicleData[index].capacity;
-        }
-      });
-      
-      combinedData.push(dataPoint);
-    });
-    
-    return combinedData;
-  };
-  
-  // Prepare multi-vehicle chart data for thermal history
-  const prepareMultiVehicleThermalData = () => {
-    if (filteredVehicleIds.length === 0) return [];
-    
-    // If only one vehicle is selected or filtered
-    if (filteredVehicleIds.length === 1) {
-      return thermalHistoryData[filteredVehicleIds[0]] || [];
-    }
-    
-    // For multiple vehicles, combine their data with vehicle identifiers
-    const combinedData: any[] = [];
-    const baseTimestamps = thermalHistoryData[filteredVehicleIds[0]]?.map(entry => entry.timestamp) || [];
-    
-    baseTimestamps.forEach((timestamp, index) => {
-      const dataPoint: any = { timestamp };
-      
-      filteredVehicleIds.forEach(vehicleId => {
-        const vehicleData = thermalHistoryData[vehicleId] || [];
-        if (vehicleData[index]) {
-          dataPoint[vehicleId] = vehicleData[index].temperature;
-        }
-      });
-      
-      combinedData.push(dataPoint);
-    });
-    
-    return combinedData;
-  };
-  
-  // Prepare filtered thermal map data
-  const prepareFilteredThermalMapData = () => {
-    const filteredThermalMapData: Record<string, number[][]> = {};
-    
-    filteredVehicleIds.forEach(vehicleId => {
-      if (thermalMapData[vehicleId]) {
-        filteredThermalMapData[vehicleId] = thermalMapData[vehicleId];
-      }
-    });
-    
-    return filteredThermalMapData;
-  };
-  
-  // Get multi-vehicle datasets
-  const multiVehicleSohData = prepareMultiVehicleSohData();
-  const multiVehicleDegradationData = prepareMultiVehicleDegradationData();
-  const multiVehicleThermalData = prepareMultiVehicleThermalData();
-  const filteredThermalMapData = prepareFilteredThermalMapData();
-  
+
   // Handle navigation to calculator page
   const handleCalculatorClick = () => {
     navigate('/calculator');
@@ -198,14 +97,14 @@ const Index = () => {
             <TabsContent value="soh" className="space-y-4">
               <DetailPanel 
                 fleetData={filteredFleetData}
-                chartData={multiVehicleSohData}
+                chartData={getSafeChartData(sohHistoricalData, firstVehicleId)}
                 panelTitle="State of Health (SoH) Analysis"
                 panelDescription="Detailed analysis of battery state of health based on charge cycles, total energy, internal resistance, and temperature stress."
                 chartTitle="SoH Trend Over Time"
                 chartYLabel="State of Health (%)"
                 additionalData={{
-                  tempVsSoh: filteredVehicleIds.length === 1 ? tempVsSohData[filteredVehicleIds[0]] : tempVsSohData[filteredFleetData[0]?.id || ''],
-                  cyclesVsSoh: filteredVehicleIds.length === 1 ? cyclesVsSohData[filteredVehicleIds[0]] : cyclesVsSohData[filteredFleetData[0]?.id || '']
+                  tempVsSoh: getSafeChartData(tempVsSohData, firstVehicleId),
+                  cyclesVsSoh: getSafeChartData(cyclesVsSohData, firstVehicleId)
                 }}
               />
             </TabsContent>
@@ -213,20 +112,20 @@ const Index = () => {
             <TabsContent value="degradation" className="space-y-4">
               <DetailPanel 
                 fleetData={filteredFleetData}
-                chartData={multiVehicleDegradationData}
+                chartData={getSafeChartData(degradationPredictionData, firstVehicleId)}
                 panelTitle="Battery Degradation Analysis"
                 panelDescription="Detailed analysis of battery degradation based on charge cycles, total energy, internal resistance, and temperature stress."
                 chartTitle="Degradation Trend Over Time"
                 chartYLabel="Capacity (%)"
-                cycleHistory={filteredVehicleIds.length === 1 ? cycleHistoryData[filteredVehicleIds[0]] : cycleHistoryData[filteredFleetData[0]?.id || '']}
+                cycleHistory={getSafeChartData(cycleHistoryData, firstVehicleId)}
               />
             </TabsContent>
             
             <TabsContent value="thermal" className="space-y-4">
               <DetailPanel 
                 fleetData={filteredFleetData}
-                chartData={multiVehicleThermalData}
-                thermalMapData={filteredThermalMapData}
+                chartData={getSafeChartData(thermalHistoryData, firstVehicleId)}
+                thermalMapData={getSafeChartData(thermalMapData, firstVehicleId)}
                 panelTitle="Thermal Risk Analysis"
                 panelDescription="Detailed analysis of battery thermal risk based on charge cycles, total energy, internal resistance, and temperature stress."
                 chartTitle="Thermal Risk Overview"
