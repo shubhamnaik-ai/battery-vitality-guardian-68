@@ -34,6 +34,14 @@ const Index = () => {
     return depotMatch && vehicleMatch;
   });
   
+  // Ensure we have safe access to the first vehicle's data
+  const firstVehicleId = filteredFleetData.length > 0 ? filteredFleetData[0].id : 'BAT-001';
+  
+  // Get chart data safely with fallback
+  const getSafeChartData = (dataMap: Record<string, any>, id: string) => {
+    return dataMap[id] || dataMap['BAT-001'] || [];
+  };
+  
   return (
     <div className="container mx-auto p-4 max-w-7xl">
       <DashboardHeader
@@ -64,7 +72,7 @@ const Index = () => {
         <TabsContent value="soh" className="space-y-4">
           <DetailPanel 
             fleetData={filteredFleetData}
-            chartData={sohHistoricalData[filteredFleetData[0]?.id || 'BAT-001']}
+            chartData={getSafeChartData(sohHistoricalData, firstVehicleId)}
             panelTitle="State of Health (SoH) Analysis"
             panelDescription="Detailed analysis of battery state of health based on charge cycles, total energy, internal resistance, and temperature stress."
             chartTitle="SoH Trend Over Time"
@@ -75,7 +83,7 @@ const Index = () => {
         <TabsContent value="degradation" className="space-y-4">
           <DetailPanel 
             fleetData={filteredFleetData}
-            chartData={degradationPredictionData[filteredFleetData[0]?.id || 'BAT-001']}
+            chartData={getSafeChartData(degradationPredictionData, firstVehicleId)}
             panelTitle="Battery Degradation Analysis"
             panelDescription="Detailed analysis of battery degradation based on charge cycles, total energy, internal resistance, and temperature stress."
             chartTitle="Degradation Trend Over Time"
@@ -86,7 +94,7 @@ const Index = () => {
         <TabsContent value="thermal" className="space-y-4">
           <DetailPanel 
             fleetData={filteredFleetData}
-            chartData={thermalMapData[filteredFleetData[0]?.id || 'BAT-001']}
+            chartData={getSafeChartData(thermalMapData, firstVehicleId)}
             panelTitle="Thermal Risk Analysis"
             panelDescription="Detailed analysis of battery thermal risk based on charge cycles, total energy, internal resistance, and temperature stress."
             chartTitle="Thermal Risk Overview"
