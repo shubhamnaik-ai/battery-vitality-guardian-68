@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -410,6 +411,38 @@ export const DetailPanel: React.FC<DetailPanelProps> = (props) => {
     estimatedLifeRemaining: 'N/A'
   };
   
+  // State for selected vehicle for thermal map
+  const [selectedVehicleForThermal, setSelectedVehicleForThermal] = useState<string>(
+    fleetData && fleetData.length > 0 ? fleetData[0].id : ''
+  );
+  
+  // Prepare multi-line chart data based on selected vehicles
+  const prepareMultiLineChartData = () => {
+    if (!fleetData || fleetData.length === 0) return [];
+    
+    const selectedVehicleIds = fleetData.map(v => v.id);
+    
+    // For SOH tab or Degradation tab
+    if (chartData) {
+      return selectedVehicleIds;
+    }
+    
+    return [];
+  };
+  
+  // Get vehicle-specific thermal map data
+  const getVehicleThermalMapData = (vehicleId: string) => {
+    if (!thermalMapData) return null;
+    
+    return thermalMapData[vehicleId] || null;
+  };
+  
+  // Selected vehicle IDs for multi-line charts
+  const selectedVehicleIds = prepareMultiLineChartData();
+  
+  // Get the thermal map data for the selected vehicle
+  const selectedThermalMap = getVehicleThermalMapData(selectedVehicleForThermal);
+  
   return (
     <Card>
       <CardHeader>
@@ -427,6 +460,18 @@ export const DetailPanel: React.FC<DetailPanelProps> = (props) => {
             label={chartYLabel || ''}
             yAxisLabel={chartYLabel || ''}
             color="#3b82f6"
+            additionalLines={
+              // Show multiple lines for multiple vehicles
+              fleetData.length > 1 ? fleetData.slice(1).map((vehicle, idx) => {
+                // Assign different colors to different vehicles
+                const colors = ['#ef4444', '#8b5cf6', '#22c55e', '#f59e0b', '#06b6d4', '#ec4899'];
+                return {
+                  dataKey: Object.keys(chartData[0])[1] || 'y',
+                  color: colors[idx % colors.length],
+                  label: vehicle.name
+                };
+              }) : []
+            }
           />
         )}
 
@@ -488,17 +533,39 @@ export const DetailPanel: React.FC<DetailPanelProps> = (props) => {
           </Card>
         )}
 
-        {/* Conditional rendering for thermalMapData (Thermal tab) */}
+        {/* Vehicle-specific Thermal Map section */}
         {thermalMapData && (
           <Card className="mt-4">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm">Cell Temperature Distribution</CardTitle>
+              <div className="flex justify-between items-center">
+                <CardTitle className="text-sm">Cell Temperature Distribution</CardTitle>
+                <div className="flex items-center">
+                  <label className="text-sm mr-2">Select Vehicle:</label>
+                  <select 
+                    className="text-sm border rounded p-1"
+                    value={selectedVehicleForThermal}
+                    onChange={(e) => setSelectedVehicleForThermal(e.target.value)}
+                  >
+                    {fleetData.map(vehicle => (
+                      <option key={vehicle.id} value={vehicle.id}>
+                        {vehicle.name} ({vehicle.temperature}°C)
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
             </CardHeader>
             <CardContent className="flex justify-center">
-              <HeatMap 
-                data={thermalMapData} 
-                title="Cell Temperature Map (°C)"
-              />
+              {selectedThermalMap ? (
+                <HeatMap 
+                  data={selectedThermalMap} 
+                  title={`${fleetData.find(v => v.id === selectedVehicleForThermal)?.name || 'Vehicle'} - Cell Temperature Map (°C)`}
+                />
+              ) : (
+                <div className="p-4 text-center text-gray-500">
+                  No thermal data available for this vehicle
+                </div>
+              )}
             </CardContent>
           </Card>
         )}
