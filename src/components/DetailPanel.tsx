@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -12,7 +11,7 @@ import HealthStatusBadge from './HealthStatusBadge';
 import { 
   sohHistoricalData, 
   socHistoricalData,
-  thermalMapData,
+  thermalMapData as importedThermalMapData,
   degradationPredictionData,
   healthFactorsData
 } from '@/data/mockData';
@@ -60,7 +59,7 @@ export const DetailPanel: React.FC<DetailPanelProps> = (props) => {
     
     const sohData = sohHistoricalData[batteryId as keyof typeof sohHistoricalData] || [];
     const socData = socHistoricalData[batteryId as keyof typeof socHistoricalData] || [];
-    const thermalData = thermalMapData[batteryId as keyof typeof thermalMapData];
+    const thermalData = importedThermalMapData[batteryId as keyof typeof importedThermalMapData];
     const degradationData = degradationPredictionData[batteryId as keyof typeof degradationPredictionData] || [];
     const healthFactors = healthFactorsData[batteryId as keyof typeof healthFactorsData];
     
