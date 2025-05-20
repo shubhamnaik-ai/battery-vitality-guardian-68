@@ -1,289 +1,388 @@
 
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
+import { useNavigate } from 'react-router-dom';
+import { 
+  Card, 
+  CardContent, 
+  CardHeader, 
+  CardTitle, 
+  CardDescription 
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
-import GaugeChart from '@/components/charts/GaugeChart';
-import { ChartLine, Thermometer, ListCheck, CircleArrowDown } from 'lucide-react';
+import { Calculator as CalcIcon, ArrowLeft } from 'lucide-react';
+import LineChart from '@/components/charts/LineChart';
 
 const BatteryCalculator = () => {
-  // Input variables
-  const [initialCapacity, setInitialCapacity] = useState(100);
-  const [cycleCount, setCycleCount] = useState(500);
+  // Battery parameters
+  const [initialSoh, setInitialSoh] = useState(100);
   const [temperature, setTemperature] = useState(25);
-  const [averageDischargeDepth, setAverageDischargeDepth] = useState(70);
-  const [restingAtHighSoc, setRestingAtHighSoc] = useState(30);
-  const [highChargeRateEvents, setHighChargeRateEvents] = useState(10);
+  const [cycleCount, setCycleCount] = useState(0);
+  const [depthOfDischarge, setDepthOfDischarge] = useState(80);
+  const [maxCycles, setMaxCycles] = useState(2000);
+  const [cRate, setCRate] = useState(1);
   
-  // Calculated results
-  const [sohResult, setSohResult] = useState(100);
-  const [lifetimeEstimate, setLifetimeEstimate] = useState("24 months");
-  const [degradationRate, setDegradationRate] = useState(0.5);
-  const [impactFactors, setImpactFactors] = useState<{
-    cycles: number;
-    temperature: number;
-    discharge: number;
-    resting: number;
-    charging: number;
-  }>({
-    cycles: 0,
-    temperature: 0,
-    discharge: 0,
-    resting: 0,
-    charging: 0,
-  });
-
-  // Calculate SoH based on all factors
-  const calculateSoh = () => {
-    // Base degradation from cycle count (0.015% per cycle on average)
-    const cycleDegradation = cycleCount * 0.015;
-    
-    // Temperature impact (accelerated degradation at high temperatures)
-    // 25°C is baseline, every 10°C above adds 20% more degradation
-    const tempFactor = temperature > 25 ? ((temperature - 25) / 10) * 0.2 : 0;
-    const temperatureDegradation = cycleDegradation * tempFactor;
-    
-    // Deep discharge impact 
-    // (DoD > 80% has higher impact, DoD < 50% has lower impact)
-    let dischargeFactor = 0;
-    if (averageDischargeDepth > 80) {
-      dischargeFactor = 0.3; // 30% additional degradation
-    } else if (averageDischargeDepth < 50) {
-      dischargeFactor = -0.15; // 15% reduced degradation (beneficial)
-    }
-    const dischargeDegradation = cycleDegradation * dischargeFactor;
-    
-    // High SoC resting impact (accelerates calendar aging)
-    // Every 10 days resting at high SoC (>80%) adds 0.2% degradation
-    const restingDegradation = (restingAtHighSoc / 10) * 0.2;
-    
-    // Fast charge events impact
-    // Each fast charge event adds 0.05% degradation
-    const chargingDegradation = highChargeRateEvents * 0.05;
-    
-    // Total degradation sum
-    const totalDegradation = cycleDegradation + 
-                              temperatureDegradation + 
-                              dischargeDegradation + 
-                              restingDegradation + 
-                              chargingDegradation;
-    
-    // Calculate the impact percentages for visualization
-    const totalImpact = cycleDegradation + 
-                        Math.abs(temperatureDegradation) + 
-                        Math.abs(dischargeDegradation) + 
-                        restingDegradation + 
-                        chargingDegradation;
-    
-    setImpactFactors({
-      cycles: cycleDegradation / totalImpact * 100,
-      temperature: Math.abs(temperatureDegradation) / totalImpact * 100,
-      discharge: Math.abs(dischargeDegradation) / totalImpact * 100,
-      resting: restingDegradation / totalImpact * 100,
-      charging: chargingDegradation / totalImpact * 100,
-    });
-    
-    // Calculate remaining SoH (cannot go below 0%)
-    const remainingSoh = Math.max(initialCapacity - totalDegradation, 0);
-    
-    // Calculate degradation rate (% per month)
-    // Assuming 500 cycles = 12 months of typical usage
-    const estimatedMonths = cycleCount / (500 / 12);
-    const monthlyRate = totalDegradation / estimatedMonths;
-    
-    // Calculate lifetime estimate (months until SoH reaches 70%)
-    const remainingPercentage = remainingSoh - 70; // until 70% SoH
-    const monthsRemaining = remainingPercentage / monthlyRate;
-    const totalLifetime = estimatedMonths + monthsRemaining;
-    
-    // Update the state
-    setSohResult(parseFloat(remainingSoh.toFixed(2)));
-    setDegradationRate(parseFloat(monthlyRate.toFixed(2)));
-    setLifetimeEstimate(`${Math.round(totalLifetime)} months`);
-  };
-
-  // Calculate SoH whenever inputs change
+  // Results
+  const [estimatedSoh, setEstimatedSoh] = useState(100);
+  const [remainingCycles, setRemainingCycles] = useState(2000);
+  const [remainingLife, setRemainingLife] = useState("5+ years");
+  const [degradationRate, setDegradationRate] = useState(0);
+  
+  // Chart data
+  const [predictionData, setPredictionData] = useState<any[]>([]);
+  const navigate = useNavigate();
+  
+  // Calculate battery health whenever parameters change
   useEffect(() => {
-    calculateSoh();
-  }, [
-    initialCapacity, 
-    cycleCount, 
-    temperature, 
-    averageDischargeDepth, 
-    restingAtHighSoc, 
-    highChargeRateEvents
-  ]);
+    calculateBatteryHealth();
+  }, [initialSoh, temperature, cycleCount, depthOfDischarge, maxCycles, cRate]);
+  
+  const calculateBatteryHealth = () => {
+    // Base degradation from cycles (non-linear)
+    const cycleDegradation = 20 * (cycleCount / maxCycles) + 10 * Math.pow(cycleCount / maxCycles, 2);
+    
+    // Temperature effect (accelerated degradation at higher temperatures)
+    const tempEffect = Math.max(0, (temperature - 25) * 0.2);
+    
+    // Depth of discharge effect
+    const dodEffect = (depthOfDischarge - 60) * 0.05;
+    
+    // C-rate effect (charging/discharging speed)
+    const cRateEffect = Math.max(0, (cRate - 1) * 2);
+    
+    // Calculate current SoH
+    const calculatedSoh = Math.max(0, initialSoh - cycleDegradation - tempEffect - dodEffect - cRateEffect);
+    setEstimatedSoh(Math.round(calculatedSoh * 10) / 10);
+    
+    // Calculate remaining cycles and life
+    const usedPercentage = (100 - calculatedSoh) / 40; // Assuming end of life at 60% SoH
+    const calculatedRemainingCycles = Math.max(0, Math.round(maxCycles * (1 - usedPercentage)));
+    setRemainingCycles(calculatedRemainingCycles);
+    
+    // Estimate remaining life in years (assuming 1 cycle per day)
+    const yearsRemaining = calculatedRemainingCycles / 365;
+    
+    if (yearsRemaining > 5) {
+      setRemainingLife("5+ years");
+    } else if (yearsRemaining > 1) {
+      setRemainingLife(`${Math.floor(yearsRemaining)} years ${Math.round((yearsRemaining % 1) * 12)} months`);
+    } else {
+      setRemainingLife(`${Math.round(yearsRemaining * 12)} months`);
+    }
+    
+    // Calculate monthly degradation rate
+    const monthlyDegradation = (100 - calculatedSoh) / (cycleCount / 30);
+    setDegradationRate(isNaN(monthlyDegradation) ? 0 : Math.round(monthlyDegradation * 100) / 100);
+    
+    // Generate prediction data
+    generatePredictionData(calculatedSoh, calculatedRemainingCycles);
+  };
+  
+  const generatePredictionData = (currentSoh: number, remainingCycles: number) => {
+    const data = [];
+    const totalPredictionCycles = cycleCount + remainingCycles;
+    const currentCycleStep = Math.max(1, Math.floor(totalPredictionCycles / 20));
+    
+    // Historical data (up to current cycle count)
+    for (let cycle = 0; cycle <= cycleCount; cycle += currentCycleStep) {
+      const progress = cycle / maxCycles;
+      const cycleDegradation = 20 * progress + 10 * Math.pow(progress, 2);
+      const tempEffect = Math.max(0, (temperature - 25) * 0.1 * progress);
+      const dodEffect = (depthOfDischarge - 60) * 0.03 * progress;
+      const cRateEffect = Math.max(0, (cRate - 1) * progress);
+      
+      const historicalSoh = Math.max(60, initialSoh - cycleDegradation - tempEffect - dodEffect - cRateEffect);
+      
+      data.push({
+        cycles: cycle,
+        value: Math.round(historicalSoh * 10) / 10,
+        isPast: true
+      });
+    }
+    
+    // Future prediction data (from current cycle count to end of life)
+    const futureSteps = 15;
+    const futureStepSize = Math.max(100, Math.floor(remainingCycles / futureSteps));
+    
+    for (let i = 1; i <= futureSteps; i++) {
+      const futureCycle = cycleCount + (i * futureStepSize);
+      if (futureCycle > totalPredictionCycles) break;
+      
+      const progress = futureCycle / maxCycles;
+      const cycleDegradation = 20 * progress + 10 * Math.pow(progress, 2);
+      const tempEffect = Math.max(0, (temperature - 25) * 0.1 * progress);
+      const dodEffect = (depthOfDischarge - 60) * 0.03 * progress);
+      const cRateEffect = Math.max(0, (cRate - 1) * progress);
+      
+      const predictedSoh = Math.max(0, initialSoh - cycleDegradation - tempEffect - dodEffect - cRateEffect);
+      
+      data.push({
+        cycles: futureCycle,
+        value: Math.round(predictedSoh * 10) / 10,
+        isPrediction: true
+      });
+    }
+    
+    setPredictionData(data);
+  };
+  
+  // Generate health assessment based on estimated SoH
+  const getHealthAssessment = () => {
+    if (estimatedSoh >= 90) return { status: 'Excellent', class: 'text-green-600' };
+    if (estimatedSoh >= 80) return { status: 'Good', class: 'text-green-500' };
+    if (estimatedSoh >= 70) return { status: 'Moderate', class: 'text-yellow-500' };
+    if (estimatedSoh >= 60) return { status: 'Fair', class: 'text-orange-500' };
+    return { status: 'Poor', class: 'text-red-500' };
+  };
+  
+  const assessment = getHealthAssessment();
 
+  const handleBackClick = () => {
+    navigate('/');
+  };
+  
   return (
-    <div className="container mx-auto p-4 max-w-5xl">
-      <h1 className="text-2xl font-bold mb-6">Battery Health Calculator</h1>
+    <div className="container mx-auto p-4 max-w-7xl">
+      <div className="flex items-center gap-4 mb-6">
+        <Button 
+          variant="outline" 
+          size="icon" 
+          onClick={handleBackClick}
+          className="h-8 w-8"
+        >
+          <ArrowLeft className="h-4 w-4" />
+        </Button>
+        <CalcIcon className="h-8 w-8 text-primary" />
+        <h1 className="text-3xl font-bold">Battery Health Calculator</h1>
+      </div>
+      
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-1 space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Input Parameters</CardTitle>
+              <CardTitle>Battery Parameters</CardTitle>
+              <CardDescription>
+                Adjust parameters to calculate battery health
+              </CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-4">
-                  <div>
-                    <div className="flex justify-between mb-2">
-                      <Label htmlFor="initial-capacity">Initial Capacity (%)</Label>
-                      <span className="text-sm font-medium">{initialCapacity}%</span>
-                    </div>
-                    <Slider
-                      id="initial-capacity"
-                      min={70}
-                      max={100}
-                      step={1}
-                      value={[initialCapacity]}
-                      onValueChange={(value) => setInitialCapacity(value[0])}
-                    />
-                  </div>
-                  
-                  <div>
-                    <div className="flex justify-between mb-2">
-                      <Label htmlFor="cycle-count">
-                        <div className="flex items-center gap-1">
-                          <ListCheck className="h-4 w-4" />
-                          <span>Charge Cycle Count</span>
-                        </div>
-                      </Label>
-                      <span className="text-sm font-medium">{cycleCount} cycles</span>
-                    </div>
-                    <Slider
-                      id="cycle-count"
-                      min={0}
-                      max={2000}
-                      step={10}
-                      value={[cycleCount]}
-                      onValueChange={(value) => setCycleCount(value[0])}
-                    />
-                  </div>
-                  
-                  <div>
-                    <div className="flex justify-between mb-2">
-                      <Label htmlFor="temperature">
-                        <div className="flex items-center gap-1">
-                          <Thermometer className="h-4 w-4" />
-                          <span>Average Operating Temperature</span>
-                        </div>
-                      </Label>
-                      <span className="text-sm font-medium">{temperature}°C</span>
-                    </div>
-                    <Slider
-                      id="temperature"
-                      min={5}
-                      max={60}
-                      step={1}
-                      value={[temperature]}
-                      onValueChange={(value) => setTemperature(value[0])}
-                    />
-                  </div>
-                </div>
-                
-                <div className="space-y-4">
-                  <div>
-                    <div className="flex justify-between mb-2">
-                      <Label htmlFor="discharge-depth">
-                        <div className="flex items-center gap-1">
-                          <CircleArrowDown className="h-4 w-4" />
-                          <span>Average Discharge Depth (%)</span>
-                        </div>
-                      </Label>
-                      <span className="text-sm font-medium">{averageDischargeDepth}%</span>
-                    </div>
-                    <Slider
-                      id="discharge-depth"
-                      min={10}
-                      max={100}
-                      step={5}
-                      value={[averageDischargeDepth]}
-                      onValueChange={(value) => setAverageDischargeDepth(value[0])}
-                    />
-                  </div>
-                  
-                  <div>
-                    <div className="flex justify-between mb-2">
-                      <Label htmlFor="high-soc">Days Resting at High SoC (&gt;80%)</Label>
-                      <span className="text-sm font-medium">{restingAtHighSoc} days</span>
-                    </div>
-                    <Slider
-                      id="high-soc"
-                      min={0}
-                      max={180}
-                      step={5}
-                      value={[restingAtHighSoc]}
-                      onValueChange={(value) => setRestingAtHighSoc(value[0])}
-                    />
-                  </div>
-                  
-                  <div>
-                    <div className="flex justify-between mb-2">
-                      <Label htmlFor="high-charge">High Charge Rate Events</Label>
-                      <span className="text-sm font-medium">{highChargeRateEvents} events</span>
-                    </div>
-                    <Slider
-                      id="high-charge"
-                      min={0}
-                      max={100}
-                      step={1}
-                      value={[highChargeRateEvents]}
-                      onValueChange={(value) => setHighChargeRateEvents(value[0])}
-                    />
-                  </div>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="initialSoh">Initial State of Health (%)</Label>
+                <div className="flex items-center gap-3">
+                  <Slider 
+                    id="initialSoh"
+                    min={60} 
+                    max={100} 
+                    step={1} 
+                    value={[initialSoh]} 
+                    onValueChange={(value) => setInitialSoh(value[0])} 
+                    className="flex-1"
+                  />
+                  <Input 
+                    type="number" 
+                    value={initialSoh} 
+                    onChange={(e) => setInitialSoh(Number(e.target.value))} 
+                    className="w-20" 
+                    min={60} 
+                    max={100}
+                  />
                 </div>
               </div>
               
-              <div className="mt-6 bg-muted/30 p-4 rounded-md">
-                <h3 className="text-sm font-medium mb-3">SoH Calculation Formula</h3>
-                <div className="text-xs space-y-1 font-mono">
-                  <p className="text-muted-foreground">
-                    SoH = Initial Capacity – (Cycle Degradation + Temperature Effect + Discharge Effect + Rest Effect + Charging Effect)
-                  </p>
-                  <div className="space-y-1 mt-2">
-                    <p>Where:</p>
-                    <p>• Cycle Degradation = Cycle Count × 0.015%</p>
-                    <p>• Temperature Effect = Cycle Degradation × ((Temp - 25°C) / 10) × 0.2 [if Temp > 25°C]</p>
-                    <p>• Discharge Effect = Cycle Degradation × 0.3 [if DoD > 80%] or -0.15 [if DoD < 50%]</p>
-                    <p>• Rest Effect = (Days at High SoC / 10) × 0.2%</p>
-                    <p>• Charging Effect = Fast Charge Events × 0.05%</p>
-                  </div>
+              <div className="space-y-2">
+                <Label htmlFor="temperature">Operating Temperature (°C)</Label>
+                <div className="flex items-center gap-3">
+                  <Slider 
+                    id="temperature"
+                    min={10} 
+                    max={60} 
+                    step={1} 
+                    value={[temperature]} 
+                    onValueChange={(value) => setTemperature(value[0])} 
+                    className="flex-1"
+                  />
+                  <Input 
+                    type="number" 
+                    value={temperature} 
+                    onChange={(e) => setTemperature(Number(e.target.value))} 
+                    className="w-20"
+                    min={10}
+                    max={60}
+                  />
                 </div>
               </div>
-
-              <Button onClick={calculateSoh} className="mt-4 w-full">
-                Recalculate Battery Health
+              
+              <div className="space-y-2">
+                <Label htmlFor="cycleCount">Cycle Count</Label>
+                <div className="flex items-center gap-3">
+                  <Slider 
+                    id="cycleCount"
+                    min={0} 
+                    max={2000} 
+                    step={10} 
+                    value={[cycleCount]} 
+                    onValueChange={(value) => setCycleCount(value[0])} 
+                    className="flex-1"
+                  />
+                  <Input 
+                    type="number" 
+                    value={cycleCount} 
+                    onChange={(e) => setCycleCount(Number(e.target.value))} 
+                    className="w-20"
+                    min={0}
+                    max={2000}
+                  />
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="maxCycles">Maximum Rated Cycles</Label>
+                <div className="flex items-center gap-3">
+                  <Slider 
+                    id="maxCycles"
+                    min={500} 
+                    max={5000} 
+                    step={100} 
+                    value={[maxCycles]} 
+                    onValueChange={(value) => setMaxCycles(value[0])} 
+                    className="flex-1"
+                  />
+                  <Input 
+                    type="number" 
+                    value={maxCycles} 
+                    onChange={(e) => setMaxCycles(Number(e.target.value))} 
+                    className="w-20"
+                    min={500}
+                    max={5000}
+                  />
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="depthOfDischarge">Typical Depth of Discharge (%)</Label>
+                <div className="flex items-center gap-3">
+                  <Slider 
+                    id="depthOfDischarge"
+                    min={20} 
+                    max={100} 
+                    step={5} 
+                    value={[depthOfDischarge]} 
+                    onValueChange={(value) => setDepthOfDischarge(value[0])} 
+                    className="flex-1"
+                  />
+                  <Input 
+                    type="number" 
+                    value={depthOfDischarge} 
+                    onChange={(e) => setDepthOfDischarge(Number(e.target.value))} 
+                    className="w-20"
+                    min={20}
+                    max={100}
+                  />
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="cRate">Typical C-Rate (charging speed)</Label>
+                <div className="flex items-center gap-3">
+                  <Slider 
+                    id="cRate"
+                    min={0.2} 
+                    max={3} 
+                    step={0.1} 
+                    value={[cRate]} 
+                    onValueChange={(value) => setCRate(value[0])} 
+                    className="flex-1"
+                  />
+                  <Input 
+                    type="number" 
+                    value={cRate} 
+                    onChange={(e) => setCRate(Number(e.target.value))} 
+                    className="w-20"
+                    min={0.2}
+                    step={0.1}
+                    max={3}
+                  />
+                </div>
+              </div>
+              
+              <Button 
+                className="w-full" 
+                onClick={calculateBatteryHealth}
+              >
+                Calculate Health
               </Button>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader>
+              <CardTitle>Parameter Effects</CardTitle>
+              <CardDescription>
+                How each parameter affects battery health
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="text-sm space-y-3">
+              <div>
+                <span className="font-medium">Temperature:</span> Higher operating temperatures accelerate degradation. Each 10°C increase above 25°C can double the rate of capacity loss.
+              </div>
+              <div>
+                <span className="font-medium">Depth of Discharge (DoD):</span> Deeper discharges cause more stress. Using only 60% of capacity (60% DoD) instead of 100% can double battery lifespan.
+              </div>
+              <div>
+                <span className="font-medium">C-Rate:</span> Faster charging/discharging rates (higher C-rate) increase stress and heat generation, accelerating degradation.
+              </div>
+              <div>
+                <span className="font-medium">Cycle Count:</span> Each charge-discharge cycle causes some degradation, with the effect becoming more pronounced at higher cycle counts.
+              </div>
             </CardContent>
           </Card>
         </div>
         
-        <div>
-          <Card className="mb-6">
+        <div className="lg:col-span-2 space-y-6">
+          <Card>
             <CardHeader>
-              <CardTitle>Results</CardTitle>
+              <CardTitle>Health Assessment</CardTitle>
             </CardHeader>
-            <CardContent className="flex flex-col items-center">
-              <div className="mb-4">
-                <GaugeChart value={sohResult} label="State of Health" size={180} />
-              </div>
-              
-              <div className="w-full space-y-4 mt-4">
-                <div className="bg-muted/30 p-3 rounded-md">
-                  <div className="text-sm font-medium">Degradation Rate</div>
-                  <div className="text-xl font-bold text-amber-600 mt-1">
-                    {degradationRate}% <span className="text-sm font-normal">per month</span>
+            <CardContent>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="col-span-2 md:col-span-1">
+                  <div className="text-3xl font-bold flex items-baseline gap-2">
+                    <span>{estimatedSoh}%</span>
+                    <span className={`text-lg ${assessment.class}`}>
+                      {assessment.status}
+                    </span>
+                  </div>
+                  <div className="text-sm text-muted-foreground mt-1">
+                    Estimated State of Health
                   </div>
                 </div>
                 
-                <div className="bg-muted/30 p-3 rounded-md">
-                  <div className="text-sm font-medium">Estimated Lifetime</div>
-                  <div className="text-xl font-bold mt-1">
-                    {lifetimeEstimate} <span className="text-sm font-normal">(until 70% SoH)</span>
+                <div className="col-span-2 md:col-span-1">
+                  <div className="text-3xl font-bold">
+                    {remainingCycles.toLocaleString()}
+                  </div>
+                  <div className="text-sm text-muted-foreground mt-1">
+                    Estimated Remaining Cycles
+                  </div>
+                </div>
+                
+                <div className="col-span-2 md:col-span-1">
+                  <div className="text-3xl font-bold">
+                    {remainingLife}
+                  </div>
+                  <div className="text-sm text-muted-foreground mt-1">
+                    Estimated Remaining Life
+                  </div>
+                </div>
+                
+                <div className="col-span-2 md:col-span-1">
+                  <div className="text-3xl font-bold">
+                    {degradationRate}%
+                  </div>
+                  <div className="text-sm text-muted-foreground mt-1">
+                    Monthly Degradation Rate
                   </div>
                 </div>
               </div>
@@ -292,59 +391,134 @@ const BatteryCalculator = () => {
           
           <Card>
             <CardHeader>
-              <CardTitle>Impact Factors</CardTitle>
+              <CardTitle>State of Health Formula</CardTitle>
+              <CardDescription>
+                The calculation used to determine battery state of health
+              </CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                <div>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span>Cycle Count</span>
-                    <span>{impactFactors.cycles.toFixed(1)}%</span>
-                  </div>
-                  <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                    <div className="h-full bg-blue-500 rounded-full" style={{ width: `${impactFactors.cycles}%` }}></div>
-                  </div>
+            <CardContent className="font-mono text-sm overflow-x-auto">
+              <div className="p-4 bg-gray-50 rounded-lg border">
+                <p className="mb-2 font-medium">SoH = InitialSoH - CycleDegradation - TempEffect - DoD_Effect - CRateEffect</p>
+                <p className="mb-2">Where:</p>
+                <ul className="space-y-2">
+                  <li>CycleDegradation = 20 × (CycleCount ÷ MaxCycles) + 10 × (CycleCount ÷ MaxCycles)²</li>
+                  <li>TempEffect = max(0, (Temperature - 25) × 0.2)</li>
+                  <li>DoD_Effect = (DepthOfDischarge - 60) × 0.05</li>
+                  <li>CRateEffect = max(0, (CRate - 1) × 2)</li>
+                </ul>
+                <p className="mt-4 text-xs text-muted-foreground">Note: The formula applies non-linear weighting to account for accelerated degradation patterns observed in real-world battery aging studies.</p>
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader>
+              <CardTitle>State of Health Prediction</CardTitle>
+              <CardDescription>
+                Projected health based on current parameters
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="h-[350px]">
+              {predictionData.length > 0 ? (
+                <LineChart
+                  data={predictionData}
+                  xDataKey="cycles"
+                  yDataKey="value"
+                  color="#3b82f6"
+                  label="State of Health"
+                  height={300}
+                  tooltipFormatter={(value) => `${value}%`}
+                  yAxisLabel="State of Health (%)"
+                  additionalLines={[
+                    {
+                      dataKey: "endOfLife",
+                      color: "#ef4444",
+                      label: "End of Life (60%)"
+                    }
+                  ]}
+                />
+              ) : (
+                <div className="flex items-center justify-center h-full text-muted-foreground">
+                  Adjust parameters to see prediction
+                </div>
+              )}
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader>
+              <CardTitle>Key Findings</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="border rounded-lg p-4">
+                  <h3 className="font-medium mb-2">Temperature Impact</h3>
+                  <p className="text-sm text-muted-foreground">
+                    {temperature <= 25 ? (
+                      "Current temperature is within optimal range for battery longevity."
+                    ) : temperature <= 35 ? (
+                      "Moderate temperature stress. Consider improved cooling to extend life."
+                    ) : (
+                      "High temperature stress detected! Temperature is significantly reducing battery life."
+                    )}
+                  </p>
                 </div>
                 
-                <div>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span>Temperature</span>
-                    <span>{impactFactors.temperature.toFixed(1)}%</span>
-                  </div>
-                  <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                    <div className="h-full bg-red-500 rounded-full" style={{ width: `${impactFactors.temperature}%` }}></div>
-                  </div>
+                <div className="border rounded-lg p-4">
+                  <h3 className="font-medium mb-2">Cycling Impact</h3>
+                  <p className="text-sm text-muted-foreground">
+                    {cycleCount < maxCycles * 0.25 ? (
+                      "Battery is in early life stage with minimal cycle degradation."
+                    ) : cycleCount < maxCycles * 0.5 ? (
+                      "Battery is in mid-life stage with moderate cycle degradation."
+                    ) : cycleCount < maxCycles * 0.75 ? (
+                      "Battery is approaching later life stages. Plan for replacement in future."
+                    ) : (
+                      "Battery is in late life stage with significant cycle degradation."
+                    )}
+                  </p>
                 </div>
                 
-                <div>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span>Discharge Depth</span>
-                    <span>{impactFactors.discharge.toFixed(1)}%</span>
-                  </div>
-                  <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                    <div className="h-full bg-amber-500 rounded-full" style={{ width: `${impactFactors.discharge}%` }}></div>
-                  </div>
+                <div className="border rounded-lg p-4">
+                  <h3 className="font-medium mb-2">Discharge Pattern Impact</h3>
+                  <p className="text-sm text-muted-foreground">
+                    {depthOfDischarge <= 60 ? (
+                      "Shallow discharge pattern is optimal for battery longevity."
+                    ) : depthOfDischarge <= 80 ? (
+                      "Moderate depth of discharge is acceptable but limiting to 60% would extend life."
+                    ) : (
+                      "Deep discharge pattern is significantly reducing battery life."
+                    )}
+                  </p>
                 </div>
                 
-                <div>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span>High SoC Resting</span>
-                    <span>{impactFactors.resting.toFixed(1)}%</span>
-                  </div>
-                  <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                    <div className="h-full bg-purple-500 rounded-full" style={{ width: `${impactFactors.resting}%` }}></div>
-                  </div>
+                <div className="border rounded-lg p-4">
+                  <h3 className="font-medium mb-2">Charging Speed Impact</h3>
+                  <p className="text-sm text-muted-foreground">
+                    {cRate <= 0.5 ? (
+                      "Slow charging is optimal for battery longevity."
+                    ) : cRate <= 1 ? (
+                      "Moderate charging rate balances convenience and battery life."
+                    ) : (
+                      "Fast charging is convenient but reducing battery lifespan."
+                    )}
+                  </p>
                 </div>
-                
-                <div>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span>Fast Charging</span>
-                    <span>{impactFactors.charging.toFixed(1)}%</span>
-                  </div>
-                  <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                    <div className="h-full bg-green-500 rounded-full" style={{ width: `${impactFactors.charging}%` }}></div>
-                  </div>
-                </div>
+              </div>
+              
+              <div className="bg-blue-50 p-4 rounded-lg">
+                <h3 className="font-medium text-blue-700 mb-2">Recommendation</h3>
+                <p className="text-sm text-blue-800">
+                  {estimatedSoh >= 80 ? (
+                    "Battery is in good health. Continue current usage patterns."
+                  ) : estimatedSoh >= 70 ? (
+                    "Consider reducing operating temperature and charge rate to extend remaining life."
+                  ) : estimatedSoh >= 60 ? (
+                    "Battery is approaching end of life. Consider reducing depth of discharge and temperature to extend remaining life."
+                  ) : (
+                    "Battery has reached end of life criteria. Consider replacement planning."
+                  )}
+                </p>
               </div>
             </CardContent>
           </Card>

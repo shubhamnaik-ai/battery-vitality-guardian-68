@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { 
   Select,
   SelectContent,
@@ -195,7 +195,7 @@ const ComparisonTab: React.FC<ComparisonTabProps> = ({
     return fleetData
       .filter(v => v.temperature > 38)
       .sort((a, b) => b.temperature - a.temperature)
-      .slice(0, 5);
+      .slice(0, 10); // Show more vehicles
   };
 
   const highTempVehicles = getHighTempVehicles();
@@ -277,34 +277,36 @@ const ComparisonTab: React.FC<ComparisonTabProps> = ({
 
           <div className="mt-4">
             <h3 className="text-sm font-medium mb-2">Selected Vehicles</h3>
-            <div className="flex flex-wrap gap-4">
-              {Object.keys(selectedVehicles)
-                .filter(id => selectedVehicles[id])
-                .map((vehicleId, index) => {
-                  const vehicle = fleetData.find(v => v.id === vehicleId);
-                  if (!vehicle) return null;
-                  
-                  const color = index === 0 ? selectedChartType.color : 
-                              additionalLines[index-1]?.color || '#000';
-                  
-                  return (
-                    <div key={vehicleId} className="bg-gray-50 px-3 py-2 rounded-lg flex items-center gap-2">
-                      <div 
-                        className="w-4 h-4 rounded-full" 
-                        style={{ backgroundColor: color }}
-                      ></div>
-                      <span className="text-sm">{getVehicleName(vehicleId)}</span>
-                      {chartData && chartData.length > 0 && (
-                        <span className="text-sm font-medium">
-                          Latest: {selectedChartType.formatter(
-                            chartData[chartData.length - 1][index === 0 ? selectedChartType.primaryKey : vehicleId]
-                          )}
-                        </span>
-                      )}
-                    </div>
-                  );
-                })}
-            </div>
+            <ScrollArea className="h-24">
+              <div className="flex flex-wrap gap-2">
+                {Object.keys(selectedVehicles)
+                  .filter(id => selectedVehicles[id])
+                  .map((vehicleId, index) => {
+                    const vehicle = fleetData.find(v => v.id === vehicleId);
+                    if (!vehicle) return null;
+                    
+                    const color = index === 0 ? selectedChartType.color : 
+                               additionalLines[index-1]?.color || '#000';
+                    
+                    return (
+                      <div key={vehicleId} className="bg-gray-50 px-3 py-2 rounded-lg flex items-center gap-2">
+                        <div 
+                          className="w-4 h-4 rounded-full" 
+                          style={{ backgroundColor: color }}
+                        ></div>
+                        <span className="text-sm">{getVehicleName(vehicleId)}</span>
+                        {chartData && chartData.length > 0 && (
+                          <span className="text-sm font-medium">
+                            Latest: {selectedChartType.formatter(
+                              chartData[chartData.length - 1][index === 0 ? selectedChartType.primaryKey : vehicleId]
+                            )}
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
+              </div>
+            </ScrollArea>
           </div>
           
         </CardContent>
