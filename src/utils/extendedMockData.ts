@@ -2,8 +2,8 @@
 // This file contains extended mock data to simulate a large fleet of batteries
 
 export const generateExtendedFleetData = (vehicleCount = 300, depotCount = 6) => {
-  const depots = ['North Depot', 'South Depot', 'East Depot', 'West Depot', 'Central Depot', 'Metro Depot']
-    .slice(0, depotCount);
+  // Use the specified depot names
+  const depots = ['Baner Depot', 'Wagholi Depot', 'Swargate Depot', 'Nigdi', 'Wagholi', 'Katraj'];
   
   // Generate vehicles across depots
   const extendedFleetData = [];
@@ -18,48 +18,51 @@ export const generateExtendedFleetData = (vehicleCount = 300, depotCount = 6) =>
     let sohBase;
     let tempBase;
     let socBase;
+    let cyclesBase;
     
     switch (depot) {
-      case 'North Depot':
+      case 'Baner Depot':
         sohBase = 85 + Math.random() * 15; // Higher SoH
         tempBase = 25 + Math.random() * 10; // Normal temps
         socBase = 50 + Math.random() * 40; // Higher SoC
+        cyclesBase = 300 + Math.random() * 400; // Lower cycles
         break;
-      case 'South Depot':
+      case 'Wagholi Depot':
         sohBase = 70 + Math.random() * 20; // Moderate SoH
         tempBase = 35 + Math.random() * 10; // Higher temps
         socBase = 50 + Math.random() * 40;
+        cyclesBase = 500 + Math.random() * 600;
         break;
-      case 'East Depot':
+      case 'Swargate Depot':
         sohBase = 60 + Math.random() * 25; // Wide range of SoH
         tempBase = 27 + Math.random() * 8; // Normal temps
         socBase = 40 + Math.random() * 50;
+        cyclesBase = 700 + Math.random() * 500;
         break;
-      case 'West Depot':
+      case 'Nigdi':
         sohBase = 75 + Math.random() * 20; // Good SoH
         tempBase = 28 + Math.random() * 7; // Normal temps
         socBase = 30 + Math.random() * 60;
+        cyclesBase = 400 + Math.random() * 300;
         break;
-      case 'Central Depot':
+      case 'Katraj':
         sohBase = 55 + Math.random() * 35; // Very wide range
         tempBase = 30 + Math.random() * 15; // Higher temps
         socBase = 20 + Math.random() * 70;
-        break;
-      case 'Metro Depot':
-        sohBase = 80 + Math.random() * 15; // Higher SoH
-        tempBase = 25 + Math.random() * 5; // Controlled temps
-        socBase = 60 + Math.random() * 30; // Higher SoC
+        cyclesBase = 800 + Math.random() * 700;
         break;
       default:
         sohBase = 70 + Math.random() * 20;
         tempBase = 30 + Math.random() * 10;
         socBase = 50 + Math.random() * 40;
+        cyclesBase = 500 + Math.random() * 500;
     }
     
     // Round values to reasonable precision
     const soh = Math.round(sohBase * 10) / 10;
     const temperature = Math.round(tempBase * 10) / 10;
     const soc = Math.round(socBase);
+    const cycleCount = Math.round(cyclesBase);
     
     // Determine status based on SoH
     let status;
@@ -76,9 +79,6 @@ export const generateExtendedFleetData = (vehicleCount = 300, depotCount = 6) =>
     else if (temperature < 40) thermalRisk = 'caution';
     else if (temperature < 45) thermalRisk = 'warning';
     else thermalRisk = 'danger';
-    
-    // Cycle count increases with decreasing SoH
-    const cycleCount = Math.round(((100 - soh) / 30) * 2000 + Math.random() * 200);
     
     // Estimated life remaining decreases with decreasing SoH
     const yearsRemaining = Math.max(0.5, (soh - 50) / 10);
@@ -104,27 +104,39 @@ export const generateExtendedFleetData = (vehicleCount = 300, depotCount = 6) =>
   return extendedFleetData;
 };
 
-// Generate historical SOH data for vehicles
+// Generate historical SOH data for vehicles with 6 months of data
 export const generateSohHistorical = (vehicleIds) => {
   const sohHistoricalData = {};
   
   for (const batteryId of vehicleIds) {
-    // Generate SoH history - last 12 months
+    // Generate SOH history - last 6 months with daily data
     const sohData = [];
-    // Start from higher SoH (12 months ago) and trend down to current
-    const currentSoH = 70 + Math.random() * 25; // Assume current SoH between 70-95%
-    const startSoH = Math.min(100, currentSoH + 5 + Math.random() * 5);
+    // Start from higher SOH (6 months ago) and trend down to current
+    const currentSoh = 70 + Math.random() * 25; // Current SOH between 70-95%
+    const startSoh = Math.min(100, currentSoh + 3 + Math.random() * 5);
     
-    for (let month = 12; month >= 0; month--) {
+    // Generate daily data for 6 months (180 days)
+    for (let day = 180; day >= 0; day--) {
       const date = new Date();
-      date.setMonth(date.getMonth() - month);
+      date.setDate(date.getDate() - day);
       
-      const progress = (12 - month) / 12; // 0 to 1 as we get closer to present
-      const soh = startSoH - progress * (startSoH - currentSoH);
+      const progress = (180 - day) / 180; // 0 to 1 as we get closer to present
+      
+      // Create some natural fluctuation
+      const noise = (Math.random() - 0.5) * 0.2;
+      const soh = startSoh - progress * (startSoh - currentSoh) + noise;
+      
+      // Add thermal effect - higher temperatures accelerate degradation
+      const thermalEffect = day % 30 < 5 ? -0.2 : 0; // Occasional thermal stress
+      
+      // Add cycle effect - more cycles accelerate degradation
+      const cycleEffect = -(Math.floor(day / 15) * 0.05);
       
       sohData.push({
         timestamp: date.toISOString(),
-        value: Math.round(soh * 10) / 10
+        value: Math.round((soh + thermalEffect + cycleEffect) * 10) / 10,
+        temperature: 25 + (Math.random() * 20), // Temperature between 25-45°C
+        cycles: Math.floor(day / 2) // Approximation of cycle count increase
       });
     }
     sohHistoricalData[batteryId] = sohData;
@@ -138,19 +150,19 @@ export const generateSocHistorical = (vehicleIds) => {
   const socHistoricalData = {};
   
   for (const batteryId of vehicleIds) {
-    // Generate SoC history - last 24 hours
+    // Generate SOC history - last 24 hours
     const socData = [];
     for (let hour = 24; hour >= 0; hour--) {
       const date = new Date();
       date.setHours(date.getHours() - hour);
       
-      // Create some patterns in SoC data
+      // Create some patterns in SOC data
       let socValue;
       if (hour % 8 < 3) {
         // Charging period
         socValue = 40 + ((3 - (hour % 8)) / 3) * 55;
       } else if (hour % 8 >= 3 && hour % 8 < 6) {
-        // High SoC period
+        // High SOC period
         socValue = 90 - ((hour % 8 - 3) / 3) * 10;
       } else {
         // Discharging period
@@ -163,7 +175,8 @@ export const generateSocHistorical = (vehicleIds) => {
       
       socData.push({
         timestamp: date.toISOString(),
-        value: Math.round(socValue)
+        value: Math.round(socValue),
+        temperature: 25 + (Math.random() * 20) // Temperature between 25-45°C
       });
     }
     socHistoricalData[batteryId] = socData;
@@ -182,13 +195,17 @@ export const generateDegradationPrediction = (vehicleIds) => {
     const degradationData = [];
     
     // Historical capacity vs cycles
-    for (let cycle = 0; cycle <= cycleCount; cycle += Math.max(1, Math.floor(cycleCount / 20))) {
+    for (let cycle = 0; cycle <= cycleCount; cycle += Math.max(1, Math.floor(cycleCount / 40))) {
       const progress = cycle / 2000; // Assuming 2000 cycles is 100% of life
       const capacity = 100 - progress * 40 - Math.random() * 3 + Math.random() * 3;
       
+      // Add thermal effect - occasional thermal stress
+      const thermalEffect = (cycle % 200 < 50) ? -2 * Math.random() : 0;
+      
       degradationData.push({
         cycles: cycle,
-        capacity: Math.round(Math.max(50, capacity) * 10) / 10
+        capacity: Math.round(Math.max(50, capacity + thermalEffect) * 10) / 10,
+        temperature: 25 + (Math.random() * 20) // Temperature between 25-45°C
       });
     }
     
@@ -204,7 +221,9 @@ export const generateDegradationPrediction = (vehicleIds) => {
       
       degradationData.push({
         cycles: futureCycle,
-        capacity: Math.round(Math.max(30, predictedCapacity) * 10) / 10
+        capacity: Math.round(Math.max(30, predictedCapacity) * 10) / 10,
+        temperature: 25 + (Math.random() * 20), // Temperature between 25-45°C
+        isPrediction: true
       });
     }
     
@@ -212,4 +231,186 @@ export const generateDegradationPrediction = (vehicleIds) => {
   }
   
   return degradationPredictionData;
+};
+
+// Generate thermal data maps with history
+export const generateThermalHistory = (vehicleIds) => {
+  const thermalHistory = {};
+  
+  for (const batteryId of vehicleIds) {
+    const history = [];
+    // Generate 6 months of weekly thermal data
+    for (let week = 26; week >= 0; week--) {
+      const date = new Date();
+      date.setDate(date.getDate() - (week * 7));
+      
+      // Generate higher temperatures for some vehicles to show thermal stress
+      const isHighTemp = Math.random() > 0.7;
+      const baseTemp = isHighTemp ? 35 + (Math.random() * 15) : 25 + (Math.random() * 10);
+      
+      history.push({
+        timestamp: date.toISOString(),
+        avgTemperature: Math.round(baseTemp * 10) / 10,
+        maxTemperature: Math.round((baseTemp + 3 + Math.random() * 5) * 10) / 10,
+        minTemperature: Math.round((baseTemp - 3 - Math.random() * 3) * 10) / 10
+      });
+    }
+    
+    thermalHistory[batteryId] = history;
+  }
+  
+  return thermalHistory;
+};
+
+// Generate cycle count history
+export const generateCycleHistory = (vehicleIds) => {
+  const cycleHistory = {};
+  
+  for (const batteryId of vehicleIds) {
+    const history = [];
+    // Generate 6 months of weekly cycle data
+    const totalCycles = 100 + Math.round(Math.random() * 1500); // Different max cycles per vehicle
+    
+    // Distribute cycles over 26 weeks (6 months)
+    let accumulatedCycles = 0;
+    
+    for (let week = 26; week >= 0; week--) {
+      const date = new Date();
+      date.setDate(date.getDate() - (week * 7));
+      
+      // Weekly cycles - higher at the beginning, tapering off
+      const weeklyCycles = Math.round(5 + Math.random() * 15 * (1 + week/26));
+      accumulatedCycles += weeklyCycles;
+      
+      // Ensure we don't exceed total cycles
+      const adjustedCycles = Math.min(weeklyCycles, totalCycles - (accumulatedCycles - weeklyCycles));
+      
+      history.push({
+        timestamp: date.toISOString(),
+        cycles: adjustedCycles,
+        totalCycles: accumulatedCycles
+      });
+    }
+    
+    cycleHistory[batteryId] = history;
+  }
+  
+  return cycleHistory;
+};
+
+// Generate data for temperature vs SOH correlation
+export const generateTempVsSohData = (vehicleIds) => {
+  const tempVsSohData = {};
+  
+  for (const batteryId of vehicleIds) {
+    const data = [];
+    
+    // Generate various temperature points and their effect on SOH
+    for (let i = 0; i < 50; i++) {
+      const temperature = 20 + Math.random() * 30; // 20-50°C
+      
+      // SOH decreases more at higher temperatures
+      const sohReduction = 0.05 * Math.pow(temperature - 20, 1.5);
+      const soh = Math.max(60, 100 - sohReduction - Math.random() * 5);
+      
+      data.push({
+        temperature: Math.round(temperature * 10) / 10,
+        soh: Math.round(soh * 10) / 10
+      });
+    }
+    
+    tempVsSohData[batteryId] = data;
+  }
+  
+  return tempVsSohData;
+};
+
+// Generate data for cycles vs SOH correlation
+export const generateCyclesVsSohData = (vehicleIds) => {
+  const cyclesVsSohData = {};
+  
+  for (const batteryId of vehicleIds) {
+    const data = [];
+    const maxCycles = 1000 + Math.round(Math.random() * 1000); // Different max cycles per vehicle
+    
+    // Generate various cycle points and their effect on SOH
+    for (let cycles = 0; cycles <= maxCycles; cycles += Math.max(50, Math.floor(maxCycles / 40))) {
+      // SOH decreases with cycles (non-linear)
+      const sohReduction = 20 * (cycles / maxCycles) + 10 * Math.pow(cycles / maxCycles, 2);
+      const soh = Math.max(60, 100 - sohReduction - Math.random() * 3);
+      
+      data.push({
+        cycles,
+        soh: Math.round(soh * 10) / 10
+      });
+    }
+    
+    cyclesVsSohData[batteryId] = data;
+  }
+  
+  return cyclesVsSohData;
+};
+
+// Generate thermal map data (for heatmap)
+export const generateThermalMapData = (vehicleIds) => {
+  const thermalMapData = {};
+  
+  for (const batteryId of vehicleIds) {
+    // Create random thermal map 5x5
+    const thermalMap = [];
+    
+    // Different temperature profiles based on the battery ID
+    const isHighTemp = parseInt(batteryId.slice(4)) % 5 === 0; // Every 5th battery has high temp
+    const baseTemp = isHighTemp ? 38 : 25;
+    
+    for (let row = 0; row < 5; row++) {
+      const rowData = [];
+      for (let col = 0; col < 5; col++) {
+        // Center cells typically hotter
+        const distFromCenter = Math.sqrt(Math.pow(row - 2, 2) + Math.pow(col - 2, 2));
+        const tempOffset = isHighTemp ? -distFromCenter : 2 - distFromCenter;
+        
+        // Add some random variation
+        const temp = baseTemp + tempOffset + (Math.random() * 3 - 1.5);
+        
+        rowData.push(Math.round(temp * 10) / 10);
+      }
+      thermalMap.push(rowData);
+    }
+    
+    thermalMapData[batteryId] = thermalMap;
+  }
+  
+  return thermalMapData;
+};
+
+// Get the list of vehicles with minimum and maximum battery temperatures
+export const getMinMaxTemperatureVehicles = (fleetData) => {
+  if (!fleetData || fleetData.length === 0) return { min: [], max: [] };
+  
+  // Sort by temperature
+  const sortedByTemp = [...fleetData].sort((a, b) => a.temperature - b.temperature);
+  
+  // Get 5 vehicles with lowest temperatures
+  const minTempVehicles = sortedByTemp.slice(0, 5);
+  
+  // Get 5 vehicles with highest temperatures
+  const maxTempVehicles = sortedByTemp.slice(-5).reverse();
+  
+  return {
+    min: minTempVehicles,
+    max: maxTempVehicles
+  };
+};
+
+// Get vehicles with potential thermal issues
+export const getVehiclesWithThermalIssues = (fleetData) => {
+  if (!fleetData || fleetData.length === 0) return [];
+  
+  // Filter vehicles with high temperatures or thermal risk
+  return fleetData.filter(vehicle => 
+    vehicle.temperature > 40 || 
+    vehicle.thermalRisk === 'warning' || 
+    vehicle.thermalRisk === 'danger'
+  );
 };

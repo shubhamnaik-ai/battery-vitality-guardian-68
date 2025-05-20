@@ -7,6 +7,7 @@ import {
   DropdownMenuContent,
   DropdownMenuCheckboxItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 
 interface FiltersProps {
@@ -26,6 +27,30 @@ const Filters: React.FC<FiltersProps> = ({
   onDepotFilterChange,
   onVehicleFilterChange,
 }) => {
+  // Check if all depots are selected
+  const allDepotsSelected = selectedDepots.length === depots.length;
+  
+  // Check if all vehicles are selected
+  const allVehiclesSelected = selectedVehicles.length === vehicles.length;
+
+  // Handle select all depots
+  const handleSelectAllDepots = () => {
+    if (allDepotsSelected) {
+      onDepotFilterChange([]);
+    } else {
+      onDepotFilterChange([...depots]);
+    }
+  };
+
+  // Handle select all vehicles
+  const handleSelectAllVehicles = () => {
+    if (allVehiclesSelected) {
+      onVehicleFilterChange([]);
+    } else {
+      onVehicleFilterChange([...vehicles]);
+    }
+  };
+
   return (
     <div className="flex flex-wrap gap-2 mb-4">
       <DropdownMenu>
@@ -41,6 +66,14 @@ const Filters: React.FC<FiltersProps> = ({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="w-56">
+          <DropdownMenuCheckboxItem
+            checked={allDepotsSelected}
+            onCheckedChange={handleSelectAllDepots}
+            className="font-semibold"
+          >
+            Select All
+          </DropdownMenuCheckboxItem>
+          <DropdownMenuSeparator />
           {depots.map((depot) => (
             <DropdownMenuCheckboxItem
               key={depot}
@@ -72,6 +105,14 @@ const Filters: React.FC<FiltersProps> = ({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="w-56 max-h-[400px] overflow-auto">
+          <DropdownMenuCheckboxItem
+            checked={allVehiclesSelected}
+            onCheckedChange={handleSelectAllVehicles}
+            className="font-semibold sticky top-0 bg-background z-10"
+          >
+            Select All
+          </DropdownMenuCheckboxItem>
+          <DropdownMenuSeparator />
           {vehicles.map((vehicle) => (
             <DropdownMenuCheckboxItem
               key={vehicle}

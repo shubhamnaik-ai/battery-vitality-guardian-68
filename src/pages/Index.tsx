@@ -6,8 +6,17 @@ import SummaryDashboard from '@/components/SummaryDashboard';
 import DetailPanel from '@/components/DetailPanel';
 import Filters from '@/components/Filters';
 import ComparisonTab from '@/components/ComparisonTab';
-import { thermalMapData, fleetData } from '@/data/mockData';
-import { generateExtendedFleetData, generateSohHistorical, generateSocHistorical, generateDegradationPrediction } from '@/utils/extendedMockData';
+import { 
+  generateExtendedFleetData, 
+  generateSohHistorical, 
+  generateSocHistorical, 
+  generateDegradationPrediction,
+  generateThermalMapData,
+  generateThermalHistory,
+  generateCycleHistory,
+  generateTempVsSohData,
+  generateCyclesVsSohData
+} from '@/utils/extendedMockData';
 
 const Index = () => {
   // Generate extended fleet data with 300 vehicles across 6 depots
@@ -26,6 +35,11 @@ const Index = () => {
   const sohHistoricalData = generateSohHistorical(vehicles);
   const socHistoricalData = generateSocHistorical(vehicles);
   const degradationPredictionData = generateDegradationPrediction(vehicles);
+  const thermalMapData = generateThermalMapData(vehicles);
+  const thermalHistoryData = generateThermalHistory(vehicles);
+  const cycleHistoryData = generateCycleHistory(vehicles);
+  const tempVsSohData = generateTempVsSohData(vehicles);
+  const cyclesVsSohData = generateCyclesVsSohData(vehicles);
   
   // Filter data based on selections
   const filteredFleetData = extendedFleetData.filter(vehicle => {
@@ -77,6 +91,10 @@ const Index = () => {
             panelDescription="Detailed analysis of battery state of health based on charge cycles, total energy, internal resistance, and temperature stress."
             chartTitle="SoH Trend Over Time"
             chartYLabel="State of Health (%)"
+            additionalData={{
+              tempVsSoh: getSafeChartData(tempVsSohData, firstVehicleId),
+              cyclesVsSoh: getSafeChartData(cyclesVsSohData, firstVehicleId)
+            }}
           />
         </TabsContent>
         
@@ -87,14 +105,16 @@ const Index = () => {
             panelTitle="Battery Degradation Analysis"
             panelDescription="Detailed analysis of battery degradation based on charge cycles, total energy, internal resistance, and temperature stress."
             chartTitle="Degradation Trend Over Time"
-            chartYLabel="Degradation Rate (%)"
+            chartYLabel="Capacity (%)"
+            cycleHistory={getSafeChartData(cycleHistoryData, firstVehicleId)}
           />
         </TabsContent>
         
         <TabsContent value="thermal" className="space-y-4">
           <DetailPanel 
             fleetData={filteredFleetData}
-            chartData={getSafeChartData(thermalMapData, firstVehicleId)}
+            chartData={getSafeChartData(thermalHistoryData, firstVehicleId)}
+            thermalMapData={getSafeChartData(thermalMapData, firstVehicleId)}
             panelTitle="Thermal Risk Analysis"
             panelDescription="Detailed analysis of battery thermal risk based on charge cycles, total energy, internal resistance, and temperature stress."
             chartTitle="Thermal Risk Overview"
@@ -108,6 +128,10 @@ const Index = () => {
             sohHistoricalData={sohHistoricalData}
             socHistoricalData={socHistoricalData}
             degradationPredictionData={degradationPredictionData}
+            cycleHistoryData={cycleHistoryData}
+            thermalHistoryData={thermalHistoryData}
+            cyclesVsSohData={cyclesVsSohData}
+            tempVsSohData={tempVsSohData}
           />
         </TabsContent>
       </Tabs>
