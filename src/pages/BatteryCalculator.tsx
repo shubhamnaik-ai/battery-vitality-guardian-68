@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
@@ -113,7 +112,7 @@ const BatteryCalculator = () => {
       const progress = futureCycle / maxCycles;
       const cycleDegradation = 20 * progress + 10 * Math.pow(progress, 2);
       const tempEffect = Math.max(0, (temperature - 25) * 0.1 * progress);
-      const dodEffect = (depthOfDischarge - 60) * 0.03 * progress);
+      const dodEffect = (depthOfDischarge - 60) * 0.03 * progress;
       const cRateEffect = Math.max(0, (cRate - 1) * progress);
       
       const predictedSoh = Math.max(0, initialSoh - cycleDegradation - tempEffect - dodEffect - cRateEffect);
