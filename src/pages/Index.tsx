@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import DashboardHeader from '@/components/DashboardHeader';
@@ -5,17 +6,12 @@ import SummaryDashboard from '@/components/SummaryDashboard';
 import DetailPanel from '@/components/DetailPanel';
 import Filters from '@/components/Filters';
 import ComparisonTab from '@/components/ComparisonTab';
-import { mockFleetData, mockBatteryData, thermalMapData } from '@/data/mockData';
+import { thermalMapData, fleetData } from '@/data/mockData';
 import { generateExtendedFleetData, generateSohHistorical, generateSocHistorical, generateDegradationPrediction } from '@/utils/extendedMockData';
 
 const Index = () => {
   // Generate extended fleet data with 300 vehicles across 6 depots
   const extendedFleetData = generateExtendedFleetData(300, 6);
-  
-  // Generate historical and prediction data
-  const sohHistoricalData = generateSohHistorical(extendedFleetData.map(v => v.id));
-  const socHistoricalData = generateSocHistorical(extendedFleetData.map(v => v.id));
-  const degradationPredictionData = generateDegradationPrediction(extendedFleetData.map(v => v.id));
   
   // State management
   const [activeTab, setActiveTab] = useState("overview");
@@ -25,6 +21,11 @@ const Index = () => {
   // Get unique depot list from fleet data
   const depots = Array.from(new Set(extendedFleetData.map(vehicle => vehicle.depot)));
   const vehicles = extendedFleetData.map(vehicle => vehicle.id);
+  
+  // Generate historical and prediction data
+  const sohHistoricalData = generateSohHistorical(vehicles);
+  const socHistoricalData = generateSocHistorical(vehicles);
+  const degradationPredictionData = generateDegradationPrediction(vehicles);
   
   // Filter data based on selections
   const filteredFleetData = extendedFleetData.filter(vehicle => {
@@ -52,15 +53,20 @@ const Index = () => {
       
       <Tabs value={activeTab} className="space-y-4">
         <TabsContent value="overview" className="space-y-4">
-          <SummaryDashboard fleetData={filteredFleetData} />
+          <SummaryDashboard 
+            fleetData={filteredFleetData}
+            sohHistoricalData={sohHistoricalData}
+            depots={depots}
+            selectedDepots={selectedDepots} 
+          />
         </TabsContent>
         
         <TabsContent value="soh" className="space-y-4">
           <DetailPanel 
-            title="State of Health (SoH) Analysis"
-            description="Detailed analysis of battery state of health based on charge cycles, total energy, internal resistance, and temperature stress."
-            data={filteredFleetData}
+            fleetData={filteredFleetData}
             chartData={sohHistoricalData[filteredFleetData[0]?.id || 'BAT-001']}
+            panelTitle="State of Health (SoH) Analysis"
+            panelDescription="Detailed analysis of battery state of health based on charge cycles, total energy, internal resistance, and temperature stress."
             chartTitle="SoH Trend Over Time"
             chartYLabel="State of Health (%)"
           />
@@ -68,10 +74,10 @@ const Index = () => {
         
         <TabsContent value="degradation" className="space-y-4">
           <DetailPanel 
-            title="Battery Degradation Analysis"
-            description="Detailed analysis of battery degradation based on charge cycles, total energy, internal resistance, and temperature stress."
-            data={filteredFleetData}
+            fleetData={filteredFleetData}
             chartData={degradationPredictionData[filteredFleetData[0]?.id || 'BAT-001']}
+            panelTitle="Battery Degradation Analysis"
+            panelDescription="Detailed analysis of battery degradation based on charge cycles, total energy, internal resistance, and temperature stress."
             chartTitle="Degradation Trend Over Time"
             chartYLabel="Degradation Rate (%)"
           />
@@ -79,10 +85,10 @@ const Index = () => {
         
         <TabsContent value="thermal" className="space-y-4">
           <DetailPanel 
-            title="Thermal Risk Analysis"
-            description="Detailed analysis of battery thermal risk based on charge cycles, total energy, internal resistance, and temperature stress."
-            data={filteredFleetData}
+            fleetData={filteredFleetData}
             chartData={thermalMapData[filteredFleetData[0]?.id || 'BAT-001']}
+            panelTitle="Thermal Risk Analysis"
+            panelDescription="Detailed analysis of battery thermal risk based on charge cycles, total energy, internal resistance, and temperature stress."
             chartTitle="Thermal Risk Overview"
             chartYLabel="Temperature (°C)"
           />

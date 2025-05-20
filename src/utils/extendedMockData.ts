@@ -1,13 +1,14 @@
 
 // This file contains extended mock data to simulate a large fleet of batteries
 
-export const generateExtendedFleetData = () => {
-  const depots = ['North Depot', 'South Depot', 'East Depot', 'West Depot', 'Central Depot', 'Metro Depot'];
+export const generateExtendedFleetData = (vehicleCount = 300, depotCount = 6) => {
+  const depots = ['North Depot', 'South Depot', 'East Depot', 'West Depot', 'Central Depot', 'Metro Depot']
+    .slice(0, depotCount);
   
-  // Generate 300 vehicles across 6 depots
+  // Generate vehicles across depots
   const extendedFleetData = [];
   
-  for (let i = 1; i <= 300; i++) {
+  for (let i = 1; i <= vehicleCount; i++) {
     const id = `BAT-${i.toString().padStart(3, '0')}`;
     const depotIndex = Math.floor(Math.random() * depots.length);
     const depot = depots[depotIndex];
@@ -103,20 +104,15 @@ export const generateExtendedFleetData = () => {
   return extendedFleetData;
 };
 
-// Generate historical data for first 10 vehicles
-export const generateHistoricalData = (fleetData: any[]) => {
-  const sohHistoricalData: Record<string, any[]> = {};
-  const socHistoricalData: Record<string, any[]> = {};
-  const degradationPredictionData: Record<string, any[]> = {};
+// Generate historical SOH data for vehicles
+export const generateSohHistorical = (vehicleIds) => {
+  const sohHistoricalData = {};
   
-  // Generate for first 10 batteries
-  for (let i = 0; i < Math.min(10, fleetData.length); i++) {
-    const batteryId = fleetData[i].id;
-    const currentSoH = fleetData[i].soh;
-    
+  for (const batteryId of vehicleIds) {
     // Generate SoH history - last 12 months
     const sohData = [];
     // Start from higher SoH (12 months ago) and trend down to current
+    const currentSoH = 70 + Math.random() * 25; // Assume current SoH between 70-95%
     const startSoH = Math.min(100, currentSoH + 5 + Math.random() * 5);
     
     for (let month = 12; month >= 0; month--) {
@@ -132,7 +128,16 @@ export const generateHistoricalData = (fleetData: any[]) => {
       });
     }
     sohHistoricalData[batteryId] = sohData;
-    
+  }
+  
+  return sohHistoricalData;
+};
+
+// Generate historical SOC data for vehicles
+export const generateSocHistorical = (vehicleIds) => {
+  const socHistoricalData = {};
+  
+  for (const batteryId of vehicleIds) {
     // Generate SoC history - last 24 hours
     const socData = [];
     for (let hour = 24; hour >= 0; hour--) {
@@ -162,9 +167,18 @@ export const generateHistoricalData = (fleetData: any[]) => {
       });
     }
     socHistoricalData[batteryId] = socData;
-    
-    // Generate degradation prediction data
-    const cycleCount = fleetData[i].cycleCount;
+  }
+  
+  return socHistoricalData;
+};
+
+// Generate degradation prediction data
+export const generateDegradationPrediction = (vehicleIds) => {
+  const degradationPredictionData = {};
+  
+  for (const batteryId of vehicleIds) {
+    // Random cycle count between 100 and 1500
+    const cycleCount = Math.round(100 + Math.random() * 1400);
     const degradationData = [];
     
     // Historical capacity vs cycles
@@ -197,5 +211,5 @@ export const generateHistoricalData = (fleetData: any[]) => {
     degradationPredictionData[batteryId] = degradationData;
   }
   
-  return { sohHistoricalData, socHistoricalData, degradationPredictionData };
+  return degradationPredictionData;
 };
