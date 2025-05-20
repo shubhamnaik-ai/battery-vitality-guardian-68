@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { X } from 'lucide-react';
+import { ScrollArea } from "@/components/ui/scroll-area";
 import LineChart from './charts/LineChart';
 import GaugeChart from './charts/GaugeChart';
 import HeatMap from './charts/HeatMap';
@@ -144,6 +145,7 @@ export const DetailPanel: React.FC<DetailPanelProps> = (props) => {
                         label="State of Health (%)"
                         xAxisFormatter={formatDate}
                         tooltipFormatter={(value) => `${value}%`}
+                        yAxisLabel="State of Health (%)"
                       />
                       
                       <div className="grid grid-cols-2 gap-4 mt-4">
@@ -243,6 +245,7 @@ export const DetailPanel: React.FC<DetailPanelProps> = (props) => {
                       label="State of Charge (%)"
                       xAxisFormatter={formatTime}
                       tooltipFormatter={(value) => `${value}%`}
+                      yAxisLabel="State of Charge (%)"
                     />
                   </CardContent>
                 </Card>
@@ -261,6 +264,7 @@ export const DetailPanel: React.FC<DetailPanelProps> = (props) => {
                       color="#9333ea"
                       label="Capacity (%)"
                       tooltipFormatter={(value) => `${value}%`}
+                      yAxisLabel="Capacity (%)"
                     />
                     
                     <div className="mt-6 grid grid-cols-3 gap-4">
@@ -384,7 +388,17 @@ export const DetailPanel: React.FC<DetailPanelProps> = (props) => {
   }
   
   // Fleet view for tab panels
-  const { fleetData = [], chartData, panelTitle, panelDescription, chartTitle, chartYLabel } = props;
+  const { 
+    fleetData = [], 
+    chartData, 
+    panelTitle, 
+    panelDescription, 
+    chartTitle, 
+    chartYLabel,
+    additionalData,
+    cycleHistory,
+    thermalMapData
+  } = props;
   
   // Safely get the first vehicle data or provide a default
   const firstVehicle = fleetData && fleetData.length > 0 ? fleetData[0] : {
@@ -412,38 +426,121 @@ export const DetailPanel: React.FC<DetailPanelProps> = (props) => {
             xDataKey={chartData[0] && Object.keys(chartData[0])[0] || 'x'} 
             yDataKey={chartData[0] && Object.keys(chartData[0])[1] || 'y'}
             label={chartYLabel || ''}
+            yAxisLabel={chartYLabel || ''}
             color="#3b82f6"
           />
         )}
 
-        {fleetData && fleetData.length > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
-            {fleetData.slice(0, 3).map(vehicle => (
-              <Card key={vehicle.id} className="bg-muted/30">
-                <CardContent className="p-4">
-                  <div className="flex justify-between items-center">
-                    <div className="font-medium">{vehicle.name}</div>
-                    <HealthStatusBadge status={vehicle.status} size="sm" />
-                  </div>
-                  <div className="mt-2 text-sm">
-                    <div className="flex justify-between mt-1">
-                      <span>SoH:</span>
-                      <span className="font-medium">{vehicle.soh}%</span>
-                    </div>
-                    <div className="flex justify-between mt-1">
-                      <span>Cycles:</span>
-                      <span className="font-medium">{vehicle.cycleCount}</span>
-                    </div>
-                    <div className="flex justify-between mt-1">
-                      <span>Est. Life:</span>
-                      <span className="font-medium">{vehicle.estimatedLifeRemaining}</span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+        {/* Conditional rendering for additionalData (SOH tab) */}
+        {additionalData && additionalData.tempVsSoh && additionalData.cyclesVsSoh && (
+          <div className="grid grid-cols-2 gap-4 mt-4">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm">Temperature vs SoH</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <LineChart
+                  data={additionalData.tempVsSoh}
+                  xDataKey="temperature"
+                  yDataKey="soh"
+                  label="SoH vs Temperature"
+                  yAxisLabel="State of Health (%)"
+                  color="#ef4444"
+                  height={200}
+                />
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm">Cycles vs SoH</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <LineChart
+                  data={additionalData.cyclesVsSoh}
+                  xDataKey="cycles"
+                  yDataKey="soh"
+                  label="SoH vs Cycles"
+                  yAxisLabel="State of Health (%)"
+                  color="#8b5cf6"
+                  height={200}
+                />
+              </CardContent>
+            </Card>
           </div>
         )}
+
+        {/* Conditional rendering for cycleHistory (Degradation tab) */}
+        {cycleHistory && (
+          <Card className="mt-4">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">Charge Cycle History</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <LineChart
+                data={cycleHistory}
+                xDataKey="timestamp"
+                yDataKey="dailyCycles"
+                label="Daily Cycles"
+                yAxisLabel="Cycles"
+                color="#f59e0b"
+                height={200}
+              />
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Conditional rendering for thermalMapData (Thermal tab) */}
+        {thermalMapData && (
+          <Card className="mt-4">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">Cell Temperature Distribution</CardTitle>
+            </CardHeader>
+            <CardContent className="flex justify-center">
+              <HeatMap 
+                data={thermalMapData} 
+                title="Cell Temperature Map (°C)"
+              />
+            </CardContent>
+          </Card>
+        )}
+
+        <div className="mt-4">
+          <h3 className="text-sm font-medium mb-2">Vehicle List</h3>
+          <ScrollArea className="h-[250px]">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {fleetData.map(vehicle => (
+                <Card key={vehicle.id} className="bg-muted/30">
+                  <CardContent className="p-4">
+                    <div className="flex justify-between items-center">
+                      <div className="font-medium">{vehicle.name}</div>
+                      <HealthStatusBadge status={vehicle.status} size="sm" />
+                    </div>
+                    <div className="mt-2 text-sm">
+                      <div className="flex justify-between mt-1">
+                        <span>SoH:</span>
+                        <span className="font-medium">{vehicle.soh}%</span>
+                      </div>
+                      <div className="flex justify-between mt-1">
+                        <span>Cycles:</span>
+                        <span className="font-medium">{vehicle.cycleCount}</span>
+                      </div>
+                      <div className="flex justify-between mt-1">
+                        <span>Temperature:</span>
+                        <span className={`font-medium ${vehicle.temperature > 38 ? 'text-red-600' : ''}`}>
+                          {vehicle.temperature}°C
+                        </span>
+                      </div>
+                      <div className="flex justify-between mt-1">
+                        <span>Est. Life:</span>
+                        <span className="font-medium">{vehicle.estimatedLifeRemaining}</span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </ScrollArea>
+        </div>
       </CardContent>
     </Card>
   );

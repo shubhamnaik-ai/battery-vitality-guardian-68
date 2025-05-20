@@ -10,8 +10,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import { LineChart } from '@/components/charts/LineChart';
 import { Button } from '@/components/ui/button';
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface ComparisonTabProps {
   fleetData: any[];
@@ -32,7 +35,8 @@ const CHART_TYPES = [
     primaryKey: 'value',
     xKey: 'timestamp',
     color: '#3b82f6',
-    formatter: (value: number) => `${value}%`
+    formatter: (value: number) => `${value}%`,
+    yAxisLabel: 'State of Health (%)'
   },
   { 
     id: 'soc',
@@ -41,7 +45,8 @@ const CHART_TYPES = [
     primaryKey: 'value',
     xKey: 'timestamp',
     color: '#10b981',
-    formatter: (value: number) => `${value}%`
+    formatter: (value: number) => `${value}%`,
+    yAxisLabel: 'State of Charge (%)'
   },
   { 
     id: 'degradation',
@@ -50,7 +55,8 @@ const CHART_TYPES = [
     primaryKey: 'capacity',
     xKey: 'cycles',
     color: '#f59e0b',
-    formatter: (value: number) => `${value}%`
+    formatter: (value: number) => `${value}%`,
+    yAxisLabel: 'Capacity (%)'
   },
   {
     id: 'cycles',
@@ -59,7 +65,8 @@ const CHART_TYPES = [
     primaryKey: 'totalCycles',
     xKey: 'timestamp',
     color: '#6366f1',
-    formatter: (value: number) => `${value} cycles`
+    formatter: (value: number) => `${value} cycles`,
+    yAxisLabel: 'Total Cycles'
   },
   {
     id: 'temperature',
@@ -68,7 +75,8 @@ const CHART_TYPES = [
     primaryKey: 'avgTemperature',
     xKey: 'timestamp',
     color: '#ef4444',
-    formatter: (value: number) => `${value}°C`
+    formatter: (value: number) => `${value}°C`,
+    yAxisLabel: 'Temperature (°C)'
   },
   {
     id: 'cyclesVsSoh',
@@ -77,7 +85,8 @@ const CHART_TYPES = [
     primaryKey: 'soh',
     xKey: 'cycles',
     color: '#8b5cf6',
-    formatter: (value: number) => `${value}%`
+    formatter: (value: number) => `${value}%`,
+    yAxisLabel: 'State of Health (%)'
   },
   {
     id: 'tempVsSoh',
@@ -86,7 +95,8 @@ const CHART_TYPES = [
     primaryKey: 'soh',
     xKey: 'temperature',
     color: '#ec4899',
-    formatter: (value: number) => `${value}%`
+    formatter: (value: number) => `${value}%`,
+    yAxisLabel: 'State of Health (%)'
   }
 ];
 
@@ -102,6 +112,10 @@ const ComparisonTab: React.FC<ComparisonTabProps> = ({
 }) => {
   const [compareValues, setCompareValues] = useState<string[]>(['BAT-001', 'BAT-002']);
   const [chartType, setChartType] = useState('soh');
+  const [selectedVehicles, setSelectedVehicles] = useState<Record<string, boolean>>({
+    'BAT-001': true, 
+    'BAT-002': true
+  });
   
   const datasets = {
     sohHistoricalData,
@@ -115,28 +129,76 @@ const ComparisonTab: React.FC<ComparisonTabProps> = ({
   
   // Get the chart configuration
   const selectedChartType = CHART_TYPES.find(type => type.id === chartType) || CHART_TYPES[0];
+
+  // Handle vehicle selection changes
+  const handleVehicleToggle = (vehicleId: string, checked: boolean) => {
+    setSelectedVehicles(prev => ({
+      ...prev,
+      [vehicleId]: checked
+    }));
+  };
   
-  // Process data for the chart
-  const processedData = compareValues.map((id, index) => {
-    const dataSource = datasets[selectedChartType.dataKey as keyof typeof datasets];
-    const rawData = dataSource[id] || [];
-    const vehicleInfo = fleetData.find(v => v.id === id) || { name: id };
+  // Process data for the chart - combine all selected vehicle data into one dataset
+  const processChartData = () => {
+    const selectedVehicleIds = Object.keys(selectedVehicles).filter(id => selectedVehicles[id]);
     
-    return {
-      id,
-      name: vehicleInfo.name,
-      data: rawData,
-      dataKey: selectedChartType.primaryKey,
-      color: index === 0 ? selectedChartType.color : index === 1 ? '#8b5cf6' : '#f59e0b',
-      formatter: selectedChartType.formatter
-    };
-  });
+    if (selectedVehicleIds.length === 0) return [];
+    
+    const dataKey = selectedChartType.dataKey;
+    const primaryKey = selectedChartType.primaryKey;
+    const dataSource = datasets[dataKey as keyof typeof datasets];
+    
+    // Get the first vehicle's data as base
+    const firstVehicleData = [...(dataSource[selectedVehicleIds[0]] || [])];
+    
+    // For each data point, add the other vehicles' values
+    selectedVehicleIds.slice(1).forEach(vehicleId => {
+      const vehicleData = dataSource[vehicleId] || [];
+      
+      // Add this vehicle's data as a new property to each data point
+      vehicleData.forEach((point: any, index: number) => {
+        if (index < firstVehicleData.length) {
+          firstVehicleData[index][vehicleId] = point[primaryKey];
+        }
+      });
+    });
+    
+    return firstVehicleData;
+  };
+  
+  // Create additional lines config for all selected vehicles
+  const getAdditionalLines = () => {
+    const selectedVehicleIds = Object.keys(selectedVehicles).filter(id => selectedVehicles[id]);
+    
+    // First vehicle will be the main line, others will be additional lines
+    return selectedVehicleIds.slice(1).map((id, index) => ({
+      dataKey: id,
+      color: index === 0 ? '#8b5cf6' : index === 1 ? '#f59e0b' : 
+              index === 2 ? '#10b981' : index === 3 ? '#ef4444' : 
+              `hsl(${(index * 30) % 360}, 70%, 50%)`,
+      label: getVehicleName(id)
+    }));
+  };
   
   // Find vehicle names by IDs
   const getVehicleName = (id: string) => {
     const vehicle = fleetData.find(v => v.id === id);
     return vehicle ? vehicle.name : id;
   };
+
+  // Get the processed chart data
+  const chartData = processChartData();
+  const additionalLines = getAdditionalLines();
+
+  // Get list of vehicles with highest temperature range
+  const getHighTempVehicles = () => {
+    return fleetData
+      .filter(v => v.temperature > 38)
+      .sort((a, b) => b.temperature - a.temperature)
+      .slice(0, 5);
+  };
+
+  const highTempVehicles = getHighTempVehicles();
 
   return (
     <div className="space-y-6">
@@ -167,61 +229,40 @@ const ComparisonTab: React.FC<ComparisonTabProps> = ({
                 </SelectContent>
               </Select>
             </div>
-            
-            <div>
-              <label className="text-sm font-medium block mb-2">Vehicle 1</label>
-              <Select 
-                value={compareValues[0]}
-                onValueChange={(value) => setCompareValues([value, compareValues[1]])}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select vehicle" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    <SelectLabel>Vehicles</SelectLabel>
-                    {fleetData.map(vehicle => (
-                      <SelectItem key={vehicle.id} value={vehicle.id}>
-                        {vehicle.name} ({vehicle.id})
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div>
-              <label className="text-sm font-medium block mb-2">Vehicle 2</label>
-              <Select 
-                value={compareValues[1]}
-                onValueChange={(value) => setCompareValues([compareValues[0], value])}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select vehicle" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    <SelectLabel>Vehicles</SelectLabel>
-                    {fleetData.map(vehicle => (
-                      <SelectItem key={vehicle.id} value={vehicle.id}>
-                        {vehicle.name} ({vehicle.id})
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
+
+            <div className="col-span-2">
+              <label className="text-sm font-medium block mb-2">Select Vehicles to Compare</label>
+              <ScrollArea className="h-40 border rounded-md p-2">
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                  {fleetData.slice(0, 50).map((vehicle) => (
+                    <div key={vehicle.id} className="flex items-center space-x-2">
+                      <Checkbox 
+                        id={`vehicle-${vehicle.id}`} 
+                        checked={selectedVehicles[vehicle.id] || false}
+                        onCheckedChange={(checked) => 
+                          handleVehicleToggle(vehicle.id, checked === true)
+                        }
+                      />
+                      <Label htmlFor={`vehicle-${vehicle.id}`} className="text-sm">
+                        {vehicle.name}
+                      </Label>
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
             </div>
           </div>
           
           <div className="h-[400px]">
             <LineChart
-              data={processedData[0].data}
+              data={chartData}
               xDataKey={selectedChartType.xKey}
-              yDataKey={processedData[0].dataKey}
-              color={processedData[0].color}
-              label={getVehicleName(processedData[0].id)}
+              yDataKey={selectedChartType.primaryKey}
+              color={selectedChartType.color}
+              label={getVehicleName(Object.keys(selectedVehicles).find(id => selectedVehicles[id]) || 'BAT-001')}
               height={400}
-              tooltipFormatter={processedData[0].formatter}
+              tooltipFormatter={selectedChartType.formatter}
+              yAxisLabel={selectedChartType.yAxisLabel}
               xAxisFormatter={(value) => {
                 if (typeof value === 'string' && value.includes('T')) {
                   // Date format
@@ -230,32 +271,42 @@ const ComparisonTab: React.FC<ComparisonTabProps> = ({
                 }
                 return String(value);
               }}
-              additionalLines={processedData.slice(1).map((series, index) => ({
-                dataKey: series.dataKey,
-                color: series.color,
-                label: getVehicleName(series.id)
-              }))}
+              additionalLines={additionalLines}
             />
           </div>
-          
-          <div className="flex flex-wrap gap-4 mt-4">
-            {processedData.map((series, index) => (
-              <div key={index} className="flex items-center gap-2">
-                <div 
-                  className="w-4 h-4 rounded-full" 
-                  style={{ backgroundColor: series.color }}
-                ></div>
-                <span className="text-sm">{getVehicleName(series.id)}</span>
-                {series.data && series.data.length > 0 ? (
-                  <span className="text-sm font-medium">
-                    Latest: {series.formatter(series.data[series.data.length - 1][series.dataKey])}
-                  </span>
-                ) : (
-                  <span className="text-sm text-red-500">No data</span>
-                )}
-              </div>
-            ))}
+
+          <div className="mt-4">
+            <h3 className="text-sm font-medium mb-2">Selected Vehicles</h3>
+            <div className="flex flex-wrap gap-4">
+              {Object.keys(selectedVehicles)
+                .filter(id => selectedVehicles[id])
+                .map((vehicleId, index) => {
+                  const vehicle = fleetData.find(v => v.id === vehicleId);
+                  if (!vehicle) return null;
+                  
+                  const color = index === 0 ? selectedChartType.color : 
+                              additionalLines[index-1]?.color || '#000';
+                  
+                  return (
+                    <div key={vehicleId} className="bg-gray-50 px-3 py-2 rounded-lg flex items-center gap-2">
+                      <div 
+                        className="w-4 h-4 rounded-full" 
+                        style={{ backgroundColor: color }}
+                      ></div>
+                      <span className="text-sm">{getVehicleName(vehicleId)}</span>
+                      {chartData && chartData.length > 0 && (
+                        <span className="text-sm font-medium">
+                          Latest: {selectedChartType.formatter(
+                            chartData[chartData.length - 1][index === 0 ? selectedChartType.primaryKey : vehicleId]
+                          )}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+            </div>
           </div>
+          
         </CardContent>
       </Card>
       
@@ -270,9 +321,11 @@ const ComparisonTab: React.FC<ComparisonTabProps> = ({
                 <thead>
                   <tr className="border-b">
                     <th className="text-left font-medium p-2">Metric</th>
-                    {compareValues.map(id => (
-                      <th key={id} className="text-left font-medium p-2">{getVehicleName(id)}</th>
-                    ))}
+                    {Object.keys(selectedVehicles)
+                      .filter(id => selectedVehicles[id])
+                      .map(id => (
+                        <th key={id} className="text-left font-medium p-2">{getVehicleName(id)}</th>
+                      ))}
                   </tr>
                 </thead>
                 <tbody>
@@ -288,18 +341,20 @@ const ComparisonTab: React.FC<ComparisonTabProps> = ({
                   ].map((metric, idx) => (
                     <tr key={idx} className={idx % 2 === 0 ? 'bg-gray-50' : ''}>
                       <td className="p-2 font-medium">{metric.label}</td>
-                      {compareValues.map(id => {
-                        const vehicle = fleetData.find(v => v.id === id);
-                        let value = vehicle ? vehicle[metric.key] : 'N/A';
-                        if (metric.transform && value !== 'N/A') {
-                          value = metric.transform(value);
-                        }
-                        return (
-                          <td key={id} className="p-2">
-                            {value}{metric.suffix || ''}
-                          </td>
-                        );
-                      })}
+                      {Object.keys(selectedVehicles)
+                        .filter(id => selectedVehicles[id])
+                        .map(id => {
+                          const vehicle = fleetData.find(v => v.id === id);
+                          let value = vehicle ? vehicle[metric.key] : 'N/A';
+                          if (metric.transform && value !== 'N/A') {
+                            value = metric.transform(value);
+                          }
+                          return (
+                            <td key={id} className="p-2">
+                              {value}{metric.suffix || ''}
+                            </td>
+                          );
+                        })}
                     </tr>
                   ))}
                 </tbody>
@@ -310,89 +365,42 @@ const ComparisonTab: React.FC<ComparisonTabProps> = ({
         
         <Card>
           <CardHeader>
-            <CardTitle>Analysis Insights</CardTitle>
+            <CardTitle>Vehicles with High Temperature</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            {compareValues.map(id => {
-              const vehicle = fleetData.find(v => v.id === id);
-              if (!vehicle) return null;
-              
-              // Calculate difference between vehicles
-              const otherVehicle = fleetData.find(v => v.id === (id === compareValues[0] ? compareValues[1] : compareValues[0]));
-              const sohDiff = otherVehicle ? (vehicle.soh - otherVehicle.soh).toFixed(1) : 'N/A';
-              const cycleDiff = otherVehicle ? (vehicle.cycleCount - otherVehicle.cycleCount) : 'N/A';
-              const tempDiff = otherVehicle ? (vehicle.temperature - otherVehicle.temperature).toFixed(1) : 'N/A';
-              
-              return (
-                <div key={id} className="p-4 border rounded-lg">
-                  <h3 className="font-medium text-lg mb-2">{getVehicleName(id)}</h3>
-                  <div className="space-y-2 text-sm">
-                    <p>
-                      <span className="font-medium">Health Analysis:</span> {vehicle.soh}% SoH is 
-                      {vehicle.soh > 90 ? ' excellent' : 
-                       vehicle.soh > 80 ? ' good' : 
-                       vehicle.soh > 70 ? ' moderate' : 
-                       vehicle.soh > 60 ? ' concerning' : ' critical'}.
-                      {otherVehicle && ` ${Math.abs(Number(sohDiff))}% ${Number(sohDiff) > 0 ? 'higher' : 'lower'} than comparison vehicle.`}
-                    </p>
-                    <p>
-                      <span className="font-medium">Usage Pattern:</span> {vehicle.cycleCount} cycles indicates 
-                      {vehicle.cycleCount < 300 ? ' light usage' : 
-                       vehicle.cycleCount < 600 ? ' moderate usage' : 
-                       vehicle.cycleCount < 1000 ? ' heavy usage' : ' very heavy usage'}.
-                      {otherVehicle && ` ${Math.abs(Number(cycleDiff))} ${Number(cycleDiff) > 0 ? 'more' : 'fewer'} cycles than comparison vehicle.`}
-                    </p>
-                    <p>
-                      <span className="font-medium">Thermal Management:</span> {vehicle.temperature}°C is 
-                      {vehicle.temperature < 30 ? ' within optimal range' : 
-                       vehicle.temperature < 35 ? ' slightly elevated' : 
-                       vehicle.temperature < 40 ? ' high' : ' critically high'}.
-                      {otherVehicle && ` ${Math.abs(Number(tempDiff))}°C ${Number(tempDiff) > 0 ? 'higher' : 'lower'} than comparison vehicle.`}
-                    </p>
-                    <p>
-                      <span className="font-medium">Estimated Lifespan:</span> {vehicle.estimatedLifeRemaining} remaining based on current usage patterns.
-                    </p>
-                  </div>
-                </div>
-              );
-            })}
-            
-            <div className="bg-blue-50 p-4 rounded-lg">
-              <h3 className="font-medium text-blue-700 mb-2">Comparison Summary</h3>
-              {compareValues.length === 2 && (() => {
-                const v1 = fleetData.find(v => v.id === compareValues[0]);
-                const v2 = fleetData.find(v => v.id === compareValues[1]);
-                
-                if (!v1 || !v2) return <p className="text-sm">Unable to compare - missing vehicle data.</p>;
-                
-                const sohDiff = Math.abs(v1.soh - v2.soh).toFixed(1);
-                const cycleDiff = Math.abs(v1.cycleCount - v2.cycleCount);
-                const tempDiff = Math.abs(v1.temperature - v2.temperature).toFixed(1);
-                
-                // Determine which vehicle is performing better
-                const betterSoh = v1.soh > v2.soh ? v1.id : v2.id;
-                const betterTemp = v1.temperature < v2.temperature ? v1.id : v2.id;
-                
-                return (
-                  <div className="text-sm text-blue-800 space-y-2">
-                    <p>
-                      Health difference is {sohDiff}%, with {getVehicleName(betterSoh)} showing better health.
-                    </p>
-                    <p>
-                      Cycle count differs by {cycleDiff} cycles, which may explain some of the health difference.
-                    </p>
-                    <p>
-                      Temperature difference is {tempDiff}°C, with {getVehicleName(betterTemp)} having better thermal management.
-                    </p>
-                    <p className="font-medium mt-3">
-                      {v1.soh > v2.soh ? 
-                        `${getVehicleName(v1.id)} is outperforming ${getVehicleName(v2.id)}` : 
-                        `${getVehicleName(v2.id)} is outperforming ${getVehicleName(v1.id)}`} 
-                      in terms of battery health.
-                    </p>
-                  </div>
-                );
-              })()}
+          <CardContent>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left font-medium p-2">ID</th>
+                    <th className="text-left font-medium p-2">Name</th>
+                    <th className="text-left font-medium p-2">Temperature</th>
+                    <th className="text-left font-medium p-2">Thermal Risk</th>
+                    <th className="text-left font-medium p-2">Depot</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {highTempVehicles.map((vehicle) => (
+                    <tr key={vehicle.id} className="border-b">
+                      <td className="p-2">{vehicle.id}</td>
+                      <td className="p-2">{vehicle.name}</td>
+                      <td className="p-2 font-medium text-red-600">{vehicle.temperature}°C</td>
+                      <td className="p-2">
+                        <span 
+                          className={`px-2 py-0.5 rounded text-xs ${
+                            vehicle.thermalRisk === 'critical' ? 'bg-red-100 text-red-800' : 
+                            vehicle.thermalRisk === 'warning' ? 'bg-amber-100 text-amber-800' : 
+                            'bg-yellow-100 text-yellow-800'
+                          }`}
+                        >
+                          {vehicle.thermalRisk.toUpperCase()}
+                        </span>
+                      </td>
+                      <td className="p-2">{vehicle.depot}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </CardContent>
         </Card>
