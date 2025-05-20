@@ -1,3 +1,4 @@
+
 import type { Config } from "tailwindcss";
 
 export default {
@@ -61,7 +62,24 @@ export default {
 					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
-				}
+				},
+				// Battery health status colors
+				battery: {
+					optimal: '#22c55e',    // Green
+					good: '#84cc16',       // Light Green
+					moderate: '#eab308',   // Yellow
+					warning: '#f97316',    // Orange
+					critical: '#ef4444',   // Red
+					unknown: '#94a3b8',    // Slate
+				},
+				// Thermal colors
+				thermal: {
+					safe: '#22c55e',       // Green
+					elevated: '#84cc16',    // Light Green
+					caution: '#eab308',     // Yellow
+					warning: '#f97316',     // Orange
+					danger: '#ef4444',      // Red
+				},
 			},
 			borderRadius: {
 				lg: 'var(--radius)',
@@ -84,11 +102,16 @@ export default {
 					to: {
 						height: '0'
 					}
+				},
+				'pulse-slow': {
+					'0%, 100%': { opacity: '1' },
+					'50%': { opacity: '0.6' }
 				}
 			},
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
-				'accordion-up': 'accordion-up 0.2s ease-out'
+				'accordion-up': 'accordion-up 0.2s ease-out',
+				'pulse-slow': 'pulse-slow 3s infinite'
 			}
 		}
 	},
