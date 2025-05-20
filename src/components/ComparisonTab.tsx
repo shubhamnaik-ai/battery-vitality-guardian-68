@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { Compare } from 'lucide-react';
+import { GitCompare } from 'lucide-react';
 import LineChart from './charts/LineChart';
 
 interface ComparisonTabProps {
@@ -134,7 +134,7 @@ const ComparisonTab: React.FC<ComparisonTabProps> = ({
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-2">
-        <Compare className="h-5 w-5" />
+        <GitCompare className="h-5 w-5" />
         <h2 className="text-2xl font-bold">Data Comparison</h2>
       </div>
       
