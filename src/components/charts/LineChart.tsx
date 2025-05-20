@@ -1,6 +1,8 @@
 
-import React from 'react';
-import { LineChart as RechartsLineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import React, { useState, useEffect, useRef } from 'react';
+import { LineChart as RechartsLineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ReferenceArea } from 'recharts';
+import { ZoomIn, ZoomOut } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 interface DataPoint {
   timestamp?: string;
@@ -39,12 +41,97 @@ export const LineChart: React.FC<LineChartProps> = ({
   xAxisFormatter = (value) => value,
   additionalLines = [],
 }) => {
+  const [leftZoom, setLeftZoom] = useState<number | null>(null);
+  const [rightZoom, setRightZoom] = useState<number | null>(null);
+  const [isZoomEnabled, setIsZoomEnabled] = useState(false);
+  const [zoomedData, setZoomedData] = useState(data);
+  const [isRefAreaShown, setIsRefAreaShown] = useState(false);
+
+  useEffect(() => {
+    setZoomedData(data);
+  }, [data]);
+
+  const handleZoomIn = () => {
+    setIsZoomEnabled(true);
+  };
+
+  const handleZoomOut = () => {
+    setIsZoomEnabled(false);
+    setZoomedData(data);
+  };
+
+  const handleMouseDown = (e: any) => {
+    if (!isZoomEnabled || !e) return;
+    setIsRefAreaShown(true);
+    setLeftZoom(e.activeLabel);
+  };
+
+  const handleMouseMove = (e: any) => {
+    if (!isZoomEnabled || !leftZoom || !e) return;
+    setRightZoom(e.activeLabel);
+  };
+
+  const handleMouseUp = () => {
+    if (!isZoomEnabled || !leftZoom || !rightZoom) {
+      setIsRefAreaShown(false);
+      setLeftZoom(null);
+      setRightZoom(null);
+      return;
+    }
+
+    // Ensure we're working with indices, not labels
+    let left = data.findIndex(item => item[xDataKey] === leftZoom);
+    let right = data.findIndex(item => item[xDataKey] === rightZoom);
+
+    // Make sure left is smaller than right
+    if (left > right) [left, right] = [right, left];
+
+    if (left === right || right === -1) {
+      setIsRefAreaShown(false);
+      setLeftZoom(null);
+      setRightZoom(null);
+      return;
+    }
+
+    // Apply zoom
+    const newData = data.slice(left, right + 1);
+    setZoomedData(newData);
+
+    // Reset the selection area
+    setIsRefAreaShown(false);
+    setLeftZoom(null);
+    setRightZoom(null);
+  };
+
   return (
-    <div style={{ width: '100%', height }}>
+    <div className="relative" style={{ width: '100%', height }}>
+      <div className="absolute top-0 right-0 flex gap-2 z-10">
+        <Button 
+          variant="outline" 
+          size="icon" 
+          className="h-8 w-8" 
+          onClick={handleZoomIn}
+          disabled={isZoomEnabled}
+        >
+          <ZoomIn className="h-4 w-4" />
+        </Button>
+        <Button 
+          variant="outline" 
+          size="icon" 
+          className="h-8 w-8" 
+          onClick={handleZoomOut}
+          disabled={!isZoomEnabled}
+        >
+          <ZoomOut className="h-4 w-4" />
+        </Button>
+      </div>
       <ResponsiveContainer>
         <RechartsLineChart
-          data={data}
+          data={zoomedData}
           margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
         >
           {showGrid && <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />}
           <XAxis 
@@ -85,6 +172,9 @@ export const LineChart: React.FC<LineChartProps> = ({
               dot={{ r: 3 }}
             />
           ))}
+          {isRefAreaShown && leftZoom && rightZoom && (
+            <ReferenceArea x1={leftZoom} x2={rightZoom} stroke="#8884d8" strokeOpacity={0.3} fill="#8884d8" fillOpacity={0.3} />
+          )}
         </RechartsLineChart>
       </ResponsiveContainer>
     </div>

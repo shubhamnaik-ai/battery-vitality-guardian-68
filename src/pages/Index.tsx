@@ -1,6 +1,5 @@
-
-import React, { useState } from 'react';
-import { fleetData, sohHistoricalData, thermalMapData } from '@/data/mockData';
+import React, { useState, useEffect } from 'react';
+import { fleetData as originalFleetData, sohHistoricalData as originalSohData, thermalMapData } from '@/data/mockData';
 import DashboardHeader from '@/components/DashboardHeader';
 import BatteryCard from '@/components/BatteryCard';
 import DetailPanel from '@/components/DetailPanel';
@@ -8,10 +7,44 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import LineChart from '@/components/charts/LineChart';
 import HeatMap from '@/components/charts/HeatMap';
 import { calculateDegradationRate } from '@/utils/batteryAnalytics';
+import Filters from '@/components/Filters';
+import SummaryDashboard from '@/components/SummaryDashboard';
+import ComparisonTab from '@/components/ComparisonTab';
+import { generateExtendedFleetData, generateHistoricalData } from '@/utils/extendedMockData';
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const [selectedBattery, setSelectedBattery] = useState<string | null>(null);
+  const [extendedFleetData, setExtendedFleetData] = useState<any[]>([]);
+  const [extendedSohData, setExtendedSohData] = useState<any>({});
+  const [extendedSocData, setExtendedSocData] = useState<any>({});
+  const [extendedDegradationData, setExtendedDegradationData] = useState<any>({});
+  const [selectedDepots, setSelectedDepots] = useState<string[]>([]);
+  const [selectedVehicles, setSelectedVehicles] = useState<string[]>([]);
+  const [isDataLoaded, setIsDataLoaded] = useState(false);
+  
+  // Generate extended fleet data on component mount
+  useEffect(() => {
+    const generatedFleetData = generateExtendedFleetData();
+    setExtendedFleetData(generatedFleetData);
+    
+    const { sohHistoricalData, socHistoricalData, degradationPredictionData } = generateHistoricalData(generatedFleetData);
+    setExtendedSohData(sohHistoricalData);
+    setExtendedSocData(socHistoricalData);
+    setExtendedDegradationData(degradationPredictionData);
+    
+    setIsDataLoaded(true);
+  }, []);
+  
+  // Get all available depots
+  const depots = [...new Set(extendedFleetData.map(battery => battery.depot))];
+  
+  // Filter data based on selected filters
+  const filteredFleetData = extendedFleetData.filter(battery => {
+    const depotMatch = selectedDepots.length === 0 || selectedDepots.includes(battery.depot);
+    const vehicleMatch = selectedVehicles.length === 0 || selectedVehicles.includes(battery.id);
+    return depotMatch && vehicleMatch;
+  });
   
   const handleBatteryClick = (batteryId: string) => {
     setSelectedBattery(batteryId);
@@ -22,26 +55,35 @@ const Index = () => {
   };
   
   const selectedBatteryData = selectedBattery 
-    ? fleetData.find(battery => battery.id === selectedBattery) 
+    ? filteredFleetData.find(battery => battery.id === selectedBattery) 
     : null;
   
   const batteriesByStatus = {
-    optimal: fleetData.filter(battery => battery.status === 'optimal').length,
-    good: fleetData.filter(battery => battery.status === 'good').length,
-    moderate: fleetData.filter(battery => battery.status === 'moderate').length,
-    warning: fleetData.filter(battery => battery.status === 'warning').length,
-    critical: fleetData.filter(battery => battery.status === 'critical').length,
+    optimal: filteredFleetData.filter(battery => battery.status === 'optimal').length,
+    good: filteredFleetData.filter(battery => battery.status === 'good').length,
+    moderate: filteredFleetData.filter(battery => battery.status === 'moderate').length,
+    warning: filteredFleetData.filter(battery => battery.status === 'warning').length,
+    critical: filteredFleetData.filter(battery => battery.status === 'critical').length,
   };
   
   const calculateAverageSoH = () => {
-    const sum = fleetData.reduce((acc, battery) => acc + battery.soh, 0);
-    return (sum / fleetData.length).toFixed(1);
+    if (filteredFleetData.length === 0) return "0.0";
+    const sum = filteredFleetData.reduce((acc, battery) => acc + battery.soh, 0);
+    return (sum / filteredFleetData.length).toFixed(1);
   };
 
   // Count batteries with thermal warnings
-  const thermalWarningCount = fleetData.filter(battery => 
+  const thermalWarningCount = filteredFleetData.filter(battery => 
     battery.thermalRisk === 'warning' || battery.thermalRisk === 'danger'
   ).length;
+  
+  if (!isDataLoaded) {
+    return (
+      <div className="container py-20 text-center">
+        <div className="animate-pulse text-xl">Loading battery data...</div>
+      </div>
+    );
+  }
   
   return (
     <div className="container py-6">
@@ -49,6 +91,15 @@ const Index = () => {
         title="Battery Analytics Dashboard" 
         onTabChange={setActiveTab}
         activeTab={activeTab}
+      />
+      
+      <Filters 
+        depots={depots}
+        vehicles={extendedFleetData.map(battery => battery.id)}
+        selectedDepots={selectedDepots}
+        selectedVehicles={selectedVehicles}
+        onDepotFilterChange={setSelectedDepots}
+        onVehicleFilterChange={setSelectedVehicles}
       />
       
       {activeTab === 'overview' && (
@@ -86,18 +137,18 @@ const Index = () => {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-yellow-500">
-                  {calculateDegradationRate(sohHistoricalData['BAT-001']).toFixed(2)}%
+                  {calculateDegradationRate(originalSohData['BAT-001']).toFixed(2)}%
                 </div>
                 <p className="text-xs text-muted-foreground">Average Monthly Degradation</p>
                 
                 <div className="mt-2 text-sm">
                   <div className="flex items-center justify-between">
                     <span className="text-muted-foreground">Max:</span>
-                    <span className="font-medium">{(calculateDegradationRate(sohHistoricalData['BAT-001']) * 1.5).toFixed(2)}%</span>
+                    <span className="font-medium">{(calculateDegradationRate(originalSohData['BAT-001']) * 1.5).toFixed(2)}%</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-muted-foreground">Min:</span>
-                    <span className="font-medium">{(calculateDegradationRate(sohHistoricalData['BAT-001']) * 0.6).toFixed(2)}%</span>
+                    <span className="font-medium">{(calculateDegradationRate(originalSohData['BAT-001']) * 0.6).toFixed(2)}%</span>
                   </div>
                 </div>
               </CardContent>
@@ -109,18 +160,18 @@ const Index = () => {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {Math.round(fleetData.reduce((acc, battery) => acc + battery.cycleCount, 0) / fleetData.length)}
+                  {Math.round(filteredFleetData.reduce((acc, battery) => acc + battery.cycleCount, 0) / filteredFleetData.length)}
                 </div>
                 <p className="text-xs text-muted-foreground">Across All Battery Packs</p>
                 
                 <div className="mt-2 space-y-1">
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">Highest:</span>
-                    <span className="font-medium">{Math.max(...fleetData.map(b => b.cycleCount))} cycles</span>
+                    <span className="font-medium">{Math.max(...filteredFleetData.map(b => b.cycleCount))} cycles</span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">Lowest:</span>
-                    <span className="font-medium">{Math.min(...fleetData.map(b => b.cycleCount))} cycles</span>
+                    <span className="font-medium">{Math.min(...filteredFleetData.map(b => b.cycleCount))} cycles</span>
                   </div>
                 </div>
               </CardContent>
@@ -132,7 +183,7 @@ const Index = () => {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {Math.round(fleetData.reduce((acc, battery) => acc + battery.temperature, 0) / fleetData.length)}°C
+                  {Math.round(filteredFleetData.reduce((acc, battery) => acc + battery.temperature, 0) / filteredFleetData.length)}°C
                 </div>
                 <p className="text-xs text-muted-foreground">Average Temperature</p>
                 
@@ -143,22 +194,41 @@ const Index = () => {
                   </div>
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">Max Temp:</span>
-                    <span className="font-medium">{Math.max(...fleetData.map(b => b.temperature))}°C</span>
+                    <span className="font-medium">{Math.max(...filteredFleetData.map(b => b.temperature))}°C</span>
                   </div>
                 </div>
               </CardContent>
             </Card>
           </div>
           
-          <h2 className="text-xl font-semibold mb-3">Battery Fleet Overview</h2>
+          <SummaryDashboard 
+            fleetData={extendedFleetData} 
+            sohHistoricalData={originalSohData} 
+            depots={depots}
+            selectedDepots={selectedDepots}
+          />
+          
+          <h2 className="text-xl font-semibold mt-6 mb-3">Battery Fleet Overview</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
-            {fleetData.map(battery => (
+            {filteredFleetData.slice(0, 30).map(battery => (
               <BatteryCard
                 key={battery.id}
                 {...battery}
                 onClick={() => handleBatteryClick(battery.id)}
               />
             ))}
+            
+            {filteredFleetData.length > 30 && (
+              <div className="col-span-1 sm:col-span-2 lg:col-span-3 xl:col-span-5 mt-2 text-center text-muted-foreground">
+                Showing 30 of {filteredFleetData.length} batteries. Use filters to refine results.
+              </div>
+            )}
+            
+            {filteredFleetData.length === 0 && (
+              <div className="col-span-1 sm:col-span-2 lg:col-span-3 xl:col-span-5 p-12 text-center text-muted-foreground border rounded-md">
+                No batteries match your current filter settings. Try adjusting your filters.
+              </div>
+            )}
           </div>
         </>
       )}
@@ -762,6 +832,15 @@ const Index = () => {
             </Card>
           </div>
         </div>
+      )}
+      
+      {activeTab === 'comparison' && (
+        <ComparisonTab 
+          fleetData={extendedFleetData}
+          sohHistoricalData={extendedSohData}
+          socHistoricalData={extendedSocData}
+          degradationPredictionData={extendedDegradationData}
+        />
       )}
       
       {selectedBattery && selectedBatteryData && (
