@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { fleetData, sohHistoricalData } from '@/data/mockData';
+import { fleetData, sohHistoricalData, thermalMapData } from '@/data/mockData';
 import DashboardHeader from '@/components/DashboardHeader';
 import BatteryCard from '@/components/BatteryCard';
 import DetailPanel from '@/components/DetailPanel';
