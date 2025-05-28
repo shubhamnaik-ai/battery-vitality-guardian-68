@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, useNavigate } from 'react-router-dom';
 import { Tabs, TabsContent } from "@/components/ui/tabs";
@@ -19,6 +18,7 @@ import {
   generateTempVsSohData,
   generateCyclesVsSohData
 } from '@/utils/extendedMockData';
+import { thermalHistoryData as staticThermalHistoryData } from '@/data/mockData';
 
 const Index = () => {
   // Generate extended fleet data with 300 vehicles across 6 depots
@@ -46,7 +46,11 @@ const Index = () => {
   const socHistoricalData = generateSocHistorical(vehicles);
   const degradationPredictionData = generateDegradationPrediction(vehicles);
   const thermalMapData = generateThermalMapData(vehicles);
-  const thermalHistoryData = generateThermalHistory(vehicles);
+  
+  // Use both generated and static thermal history data
+  const generatedThermalHistoryData = generateThermalHistory(vehicles);
+  const thermalHistoryData = { ...staticThermalHistoryData, ...generatedThermalHistoryData };
+  
   const cycleHistoryData = generateCycleHistory(vehicles);
   const tempVsSohData = generateTempVsSohData(vehicles);
   const cyclesVsSohData = generateCyclesVsSohData(vehicles);

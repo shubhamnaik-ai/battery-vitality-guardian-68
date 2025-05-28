@@ -1,4 +1,3 @@
-
 // This file contains extended mock data to simulate a large fleet of batteries
 
 export const generateExtendedFleetData = (vehicleCount = 300, depotCount = 6) => {
@@ -234,30 +233,33 @@ export const generateDegradationPrediction = (vehicleIds) => {
 };
 
 // Generate thermal data maps with history
-export const generateThermalHistory = (vehicleIds) => {
-  const thermalHistory = {};
+export const generateThermalHistory = (vehicleIds: string[]) => {
+  const thermalHistory: Record<string, Array<{ timestamp: string; temperature: number }>> = {};
   
-  for (const batteryId of vehicleIds) {
-    const history = [];
-    // Generate 6 months of weekly thermal data
-    for (let week = 26; week >= 0; week--) {
-      const date = new Date();
-      date.setDate(date.getDate() - (week * 7));
+  vehicleIds.forEach(vehicleId => {
+    const baseTemp = 20 + Math.random() * 25; // Base temperature between 20-45°C
+    const data: Array<{ timestamp: string; temperature: number }> = [];
+    
+    // Generate 24 hours of thermal data (every 2 hours)
+    for (let i = 0; i < 12; i++) {
+      const date = new Date('2025-05-19T00:00:00Z');
+      date.setHours(i * 2);
       
-      // Generate higher temperatures for some vehicles to show thermal stress
-      const isHighTemp = Math.random() > 0.7;
-      const baseTemp = isHighTemp ? 35 + (Math.random() * 15) : 25 + (Math.random() * 10);
+      // Simulate daily temperature variation with some randomness
+      const timeOfDay = (i * 2) / 24; // 0 to 1
+      const dailyVariation = Math.sin(timeOfDay * 2 * Math.PI - Math.PI/2) * 8; // ±8°C variation
+      const randomNoise = (Math.random() - 0.5) * 4; // ±2°C random noise
       
-      history.push({
+      const temperature = Math.max(15, Math.min(50, baseTemp + dailyVariation + randomNoise));
+      
+      data.push({
         timestamp: date.toISOString(),
-        avgTemperature: Math.round(baseTemp * 10) / 10,
-        maxTemperature: Math.round((baseTemp + 3 + Math.random() * 5) * 10) / 10,
-        minTemperature: Math.round((baseTemp - 3 - Math.random() * 3) * 10) / 10
+        temperature: Math.round(temperature * 10) / 10
       });
     }
     
-    thermalHistory[batteryId] = history;
-  }
+    thermalHistory[vehicleId] = data;
+  });
   
   return thermalHistory;
 };

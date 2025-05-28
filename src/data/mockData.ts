@@ -1,4 +1,3 @@
-
 // Mock data for battery analytics dashboard
 
 // Fleet data
@@ -157,6 +156,90 @@ export const degradationPredictionData = {
     { cycles: 1600, capacity: 70 },
     { cycles: 1800, capacity: 63 },
     { cycles: 2000, capacity: 55 },
+  ]
+};
+
+// Thermal history data for trend analysis
+export const thermalHistoryData = {
+  'BAT-001': [
+    { timestamp: '2025-05-19T00:00:00Z', temperature: 23.2 },
+    { timestamp: '2025-05-19T02:00:00Z', temperature: 23.8 },
+    { timestamp: '2025-05-19T04:00:00Z', temperature: 24.1 },
+    { timestamp: '2025-05-19T06:00:00Z', temperature: 24.5 },
+    { timestamp: '2025-05-19T08:00:00Z', temperature: 25.3 },
+    { timestamp: '2025-05-19T10:00:00Z', temperature: 26.1 },
+    { timestamp: '2025-05-19T12:00:00Z', temperature: 27.2 },
+    { timestamp: '2025-05-19T14:00:00Z', temperature: 26.8 },
+    { timestamp: '2025-05-19T16:00:00Z', temperature: 26.4 },
+    { timestamp: '2025-05-19T18:00:00Z', temperature: 25.9 },
+    { timestamp: '2025-05-19T20:00:00Z', temperature: 25.1 },
+    { timestamp: '2025-05-19T22:00:00Z', temperature: 24.6 },
+    { timestamp: '2025-05-20T00:00:00Z', temperature: 24.2 },
+    { timestamp: '2025-05-20T02:00:00Z', temperature: 23.9 },
+  ],
+  'BAT-002': [
+    { timestamp: '2025-05-19T00:00:00Z', temperature: 27.1 },
+    { timestamp: '2025-05-19T02:00:00Z', temperature: 27.6 },
+    { timestamp: '2025-05-19T04:00:00Z', temperature: 28.2 },
+    { timestamp: '2025-05-19T06:00:00Z', temperature: 28.9 },
+    { timestamp: '2025-05-19T08:00:00Z', temperature: 29.7 },
+    { timestamp: '2025-05-19T10:00:00Z', temperature: 30.5 },
+    { timestamp: '2025-05-19T12:00:00Z', temperature: 31.2 },
+    { timestamp: '2025-05-19T14:00:00Z', temperature: 30.8 },
+    { timestamp: '2025-05-19T16:00:00Z', temperature: 30.3 },
+    { timestamp: '2025-05-19T18:00:00Z', temperature: 29.7 },
+    { timestamp: '2025-05-19T20:00:00Z', temperature: 28.9 },
+    { timestamp: '2025-05-19T22:00:00Z', temperature: 28.3 },
+    { timestamp: '2025-05-20T00:00:00Z', temperature: 27.8 },
+    { timestamp: '2025-05-20T02:00:00Z', temperature: 27.4 },
+  ],
+  'BAT-003': [
+    { timestamp: '2025-05-19T00:00:00Z', temperature: 29.5 },
+    { timestamp: '2025-05-19T02:00:00Z', temperature: 30.1 },
+    { timestamp: '2025-05-19T04:00:00Z', temperature: 30.8 },
+    { timestamp: '2025-05-19T06:00:00Z', temperature: 31.5 },
+    { timestamp: '2025-05-19T08:00:00Z', temperature: 32.3 },
+    { timestamp: '2025-05-19T10:00:00Z', temperature: 33.1 },
+    { timestamp: '2025-05-19T12:00:00Z', temperature: 33.8 },
+    { timestamp: '2025-05-19T14:00:00Z', temperature: 33.4 },
+    { timestamp: '2025-05-19T16:00:00Z', temperature: 32.9 },
+    { timestamp: '2025-05-19T18:00:00Z', temperature: 32.3 },
+    { timestamp: '2025-05-19T20:00:00Z', temperature: 31.5 },
+    { timestamp: '2025-05-19T22:00:00Z', temperature: 30.9 },
+    { timestamp: '2025-05-20T00:00:00Z', temperature: 30.4 },
+    { timestamp: '2025-05-20T02:00:00Z', temperature: 30.0 },
+  ],
+  'BAT-004': [
+    { timestamp: '2025-05-19T00:00:00Z', temperature: 33.2 },
+    { timestamp: '2025-05-19T02:00:00Z', temperature: 34.1 },
+    { timestamp: '2025-05-19T04:00:00Z', temperature: 35.0 },
+    { timestamp: '2025-05-19T06:00:00Z', temperature: 35.9 },
+    { timestamp: '2025-05-19T08:00:00Z', temperature: 36.8 },
+    { timestamp: '2025-05-19T10:00:00Z', temperature: 37.5 },
+    { timestamp: '2025-05-19T12:00:00Z', temperature: 38.2 },
+    { timestamp: '2025-05-19T14:00:00Z', temperature: 37.8 },
+    { timestamp: '2025-05-19T16:00:00Z', temperature: 37.1 },
+    { timestamp: '2025-05-19T18:00:00Z', temperature: 36.4 },
+    { timestamp: '2025-05-19T20:00:00Z', temperature: 35.6 },
+    { timestamp: '2025-05-19T22:00:00Z', temperature: 34.9 },
+    { timestamp: '2025-05-20T00:00:00Z', temperature: 34.3 },
+    { timestamp: '2025-05-20T02:00:00Z', temperature: 33.8 },
+  ],
+  'BAT-005': [
+    { timestamp: '2025-05-19T00:00:00Z', temperature: 38.5 },
+    { timestamp: '2025-05-19T02:00:00Z', temperature: 39.7 },
+    { timestamp: '2025-05-19T04:00:00Z', temperature: 40.9 },
+    { timestamp: '2025-05-19T06:00:00Z', temperature: 42.1 },
+    { timestamp: '2025-05-19T08:00:00Z', temperature: 43.3 },
+    { timestamp: '2025-05-19T10:00:00Z', temperature: 44.2 },
+    { timestamp: '2025-05-19T12:00:00Z', temperature: 44.8 },
+    { timestamp: '2025-05-19T14:00:00Z', temperature: 44.1 },
+    { timestamp: '2025-05-19T16:00:00Z', temperature: 43.2 },
+    { timestamp: '2025-05-19T18:00:00Z', temperature: 42.1 },
+    { timestamp: '2025-05-19T20:00:00Z', temperature: 40.9 },
+    { timestamp: '2025-05-19T22:00:00Z', temperature: 39.8 },
+    { timestamp: '2025-05-20T00:00:00Z', temperature: 39.1 },
+    { timestamp: '2025-05-20T02:00:00Z', temperature: 38.6 },
   ]
 };
 
