@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Routes, Route, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import DashboardHeader from '@/components/DashboardHeader';
 import SummaryDashboard from '@/components/SummaryDashboard';
 import DetailPanel from '@/components/DetailPanel';
 import Filters from '@/components/Filters';
 import ComparisonTab from '@/components/ComparisonTab';
-import BatteryCalculator from './BatteryCalculator';
 import { 
   generateExtendedFleetData, 
   generateSohHistorical, 
@@ -186,91 +185,86 @@ const Index = () => {
   };
   
   return (
-    <Routes>
-      <Route path="/" element={
-        <div className="container mx-auto p-4 max-w-7xl">
-          <DashboardHeader
-            title="Battery Analytics Dashboard"
-            onTabChange={setActiveTab}
-            activeTab={activeTab}
-            onCalculatorClick={handleCalculatorClick}
-          />
-          
-          <Filters 
+    <div className="container mx-auto p-4 max-w-7xl">
+      <DashboardHeader
+        title="Battery Analytics Dashboard"
+        onTabChange={setActiveTab}
+        activeTab={activeTab}
+        onCalculatorClick={handleCalculatorClick}
+      />
+      
+      <Filters 
+        depots={depots}
+        vehicles={vehicles}
+        selectedDepots={selectedDepots}
+        selectedVehicles={selectedVehicles}
+        onDepotFilterChange={setSelectedDepots}
+        onVehicleFilterChange={setSelectedVehicles}
+      />
+      
+      <Tabs value={activeTab} className="space-y-4">
+        <TabsContent value="overview" className="space-y-4">
+          <SummaryDashboard 
+            fleetData={filteredFleetData}
+            sohHistoricalData={sohHistoricalData}
             depots={depots}
-            vehicles={vehicles}
-            selectedDepots={selectedDepots}
-            selectedVehicles={selectedVehicles}
-            onDepotFilterChange={setSelectedDepots}
-            onVehicleFilterChange={setSelectedVehicles}
+            selectedDepots={selectedDepots} 
           />
-          
-          <Tabs value={activeTab} className="space-y-4">
-            <TabsContent value="overview" className="space-y-4">
-              <SummaryDashboard 
-                fleetData={filteredFleetData}
-                sohHistoricalData={sohHistoricalData}
-                depots={depots}
-                selectedDepots={selectedDepots} 
-              />
-            </TabsContent>
-            
-            <TabsContent value="soh" className="space-y-4">
-              <DetailPanel 
-                fleetData={filteredFleetData}
-                chartData={multiVehicleSohData}
-                panelTitle="State of Health (SoH) Analysis"
-                panelDescription="Detailed analysis of battery state of health based on charge cycles, total energy, internal resistance, and temperature stress."
-                chartTitle="SoH Trend Over Time"
-                chartYLabel="State of Health (%)"
-                additionalData={{
-                  tempVsSoh: filteredVehicleIds.length === 1 ? tempVsSohData[filteredVehicleIds[0]] : tempVsSohData[filteredFleetData[0]?.id || ''],
-                  cyclesVsSoh: filteredVehicleIds.length === 1 ? cyclesVsSohData[filteredVehicleIds[0]] : cyclesVsSohData[filteredFleetData[0]?.id || '']
-                }}
-              />
-            </TabsContent>
-            
-            <TabsContent value="degradation" className="space-y-4">
-              <DetailPanel 
-                fleetData={filteredFleetData}
-                chartData={multiVehicleDegradationData}
-                panelTitle="Battery Degradation Analysis"
-                panelDescription="Detailed analysis of battery degradation based on charge cycles, total energy, internal resistance, and temperature stress."
-                chartTitle="Degradation Trend Over Time"
-                chartYLabel="Capacity (%)"
-                cycleHistory={filteredVehicleIds.length === 1 ? cycleHistoryData[filteredVehicleIds[0]] : cycleHistoryData[filteredFleetData[0]?.id || '']}
-              />
-            </TabsContent>
-            
-            <TabsContent value="thermal" className="space-y-4">
-              <DetailPanel 
-                fleetData={filteredFleetData}
-                chartData={multiVehicleThermalData}
-                thermalMapData={filteredThermalMapData}
-                panelTitle="Thermal Risk Analysis"
-                panelDescription="Detailed analysis of battery thermal risk based on charge cycles, total energy, internal resistance, and temperature stress."
-                chartTitle="Thermal Risk Overview"
-                chartYLabel="Temperature (°C)"
-              />
-            </TabsContent>
-            
-            <TabsContent value="comparison" className="space-y-4">
-              <ComparisonTab 
-                fleetData={filteredFleetData}
-                sohHistoricalData={sohHistoricalData}
-                socHistoricalData={socHistoricalData}
-                degradationPredictionData={degradationPredictionData}
-                cycleHistoryData={cycleHistoryData}
-                thermalHistoryData={thermalHistoryData}
-                cyclesVsSohData={cyclesVsSohData}
-                tempVsSohData={tempVsSohData}
-              />
-            </TabsContent>
-          </Tabs>
-        </div>
-      } />
-      <Route path="/calculator" element={<BatteryCalculator />} />
-    </Routes>
+        </TabsContent>
+        
+        <TabsContent value="soh" className="space-y-4">
+          <DetailPanel 
+            fleetData={filteredFleetData}
+            chartData={multiVehicleSohData}
+            panelTitle="State of Health (SoH) Analysis"
+            panelDescription="Detailed analysis of battery state of health based on charge cycles, total energy, internal resistance, and temperature stress."
+            chartTitle="SoH Trend Over Time"
+            chartYLabel="State of Health (%)"
+            additionalData={{
+              tempVsSoh: filteredVehicleIds.length === 1 ? tempVsSohData[filteredVehicleIds[0]] : tempVsSohData[filteredFleetData[0]?.id || ''],
+              cyclesVsSoh: filteredVehicleIds.length === 1 ? cyclesVsSohData[filteredVehicleIds[0]] : cyclesVsSohData[filteredFleetData[0]?.id || '']
+            }}
+          />
+        </TabsContent>
+        
+        <TabsContent value="degradation" className="space-y-4">
+          <DetailPanel 
+            fleetData={filteredFleetData}
+            chartData={multiVehicleDegradationData}
+            panelTitle="Battery Degradation Analysis"
+            panelDescription="Detailed analysis of battery degradation based on charge cycles, total energy, internal resistance, and temperature stress."
+            chartTitle="Degradation Trend Over Time"
+            chartYLabel="Capacity (%)"
+            cycleHistory={filteredVehicleIds.length === 1 ? cycleHistoryData[filteredVehicleIds[0]] : cycleHistoryData[filteredFleetData[0]?.id || '']}
+          />
+        </TabsContent>
+        
+        <TabsContent value="thermal" className="space-y-4">
+          <DetailPanel 
+            fleetData={filteredFleetData}
+            chartData={multiVehicleThermalData}
+            thermalMapData={filteredThermalMapData}
+            panelTitle="Thermal Risk Analysis"
+            panelDescription="Detailed analysis of battery thermal risk based on charge cycles, total energy, internal resistance, and temperature stress."
+            chartTitle="Thermal Risk Overview"
+            chartYLabel="Temperature (°C)"
+          />
+        </TabsContent>
+        
+        <TabsContent value="comparison" className="space-y-4">
+          <ComparisonTab 
+            fleetData={filteredFleetData}
+            sohHistoricalData={sohHistoricalData}
+            socHistoricalData={socHistoricalData}
+            degradationPredictionData={degradationPredictionData}
+            cycleHistoryData={cycleHistoryData}
+            thermalHistoryData={thermalHistoryData}
+            cyclesVsSohData={cyclesVsSohData}
+            tempVsSohData={tempVsSohData}
+          />
+        </TabsContent>
+      </Tabs>
+    </div>
   );
 };
 
